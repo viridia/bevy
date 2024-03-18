@@ -13,7 +13,10 @@ use bevy_render::{
     primitives::{Aabb, CascadesFrusta, CubemapFrusta, Frustum, HalfSpace, Sphere},
     render_resource::BufferBindingType,
     renderer::RenderDevice,
-    view::{InheritedVisibility, RenderGroups, ViewVisibility, VisibleEntities},
+    view::{
+        extract_render_groups, InheritedRenderGroups, InheritedVisibility, render_groups_asref, RenderGroups,
+        ViewVisibility, VisibleEntities
+    },
 };
 use bevy_transform::components::{GlobalTransform, Transform};
 use bevy_utils::tracing::warn;
@@ -1240,6 +1243,7 @@ pub(crate) fn assign_lights_to_clusters(
         &ClusterConfig,
         &mut Clusters,
         Option<&RenderGroups>,
+        Option<&InheritedRenderGroups>,
         Option<&mut VisiblePointLights>,
     )>,
     point_lights_query: Query<(
@@ -1247,6 +1251,7 @@ pub(crate) fn assign_lights_to_clusters(
         &GlobalTransform,
         &PointLight,
         Option<&RenderGroups>,
+        Option<&InheritedRenderGroups>,
         &ViewVisibility,
     )>,
     spot_lights_query: Query<(
@@ -1254,6 +1259,7 @@ pub(crate) fn assign_lights_to_clusters(
         &GlobalTransform,
         &SpotLight,
         Option<&RenderGroups>,
+        Option<&InheritedRenderGroups>,
         &ViewVisibility,
     )>,
     mut lights: Local<Vec<PointLightAssignmentData>>,
@@ -1273,14 +1279,14 @@ pub(crate) fn assign_lights_to_clusters(
             .iter()
             .filter(|(.., visibility)| visibility.get())
             .map(
-                |(entity, transform, point_light, _maybe_groups, _visibility)| {
+                |(entity, transform, point_light, _maybe_groups, _maybe_inherited, _visibility)| {
                     PointLightAssignmentData {
                         entity,
                         transform: GlobalTransform::from_translation(transform.translation()),
                         shadows_enabled: point_light.shadows_enabled,
                         range: point_light.range,
                         spot_light_angle: None,
-                        render_groups: 0u32//maybe_groups.cloned().unwrap_or(RenderGroups::default()),
+                        render_groups: 0u32//extract_render_groups(maybe_inherited, maybe_groups),
                     }
                 },
             ),
@@ -1290,14 +1296,14 @@ pub(crate) fn assign_lights_to_clusters(
             .iter()
             .filter(|(.., visibility)| visibility.get())
             .map(
-                |(entity, transform, spot_light, _maybe_groups, _visibility)| {
+                |(entity, transform, spot_light, _maybe_groups, _maybe_inherited, _visibility)| {
                     PointLightAssignmentData {
                         entity,
                         transform: *transform,
                         shadows_enabled: spot_light.shadows_enabled,
                         range: spot_light.range,
                         spot_light_angle: Some(spot_light.outer_angle),
-                        render_groups: 0u32//maybe_groups.cloned().unwrap_or(RenderGroups::default()),
+                        render_groups: 0u32//extract_render_groups(maybe_inherited, maybe_groups),
                     }
                 },
             ),
@@ -1328,7 +1334,7 @@ pub(crate) fn assign_lights_to_clusters(
         // check each light against each view's frustum, keep only those that affect at least one of our views
         let frusta: Vec<_> = views
             .iter()
-            .map(|(_, _, _, frustum, _, _, _, _)| *frustum)
+            .map(|(_, _, _, frustum, _, _, _, _, _)| *frustum)
             .collect();
         let mut lights_in_view_count = 0;
         lights.retain(|light| {
@@ -1368,11 +1374,11 @@ pub(crate) fn assign_lights_to_clusters(
         config,
         clusters,
         maybe_groups,
+        maybe_inherited,
         mut visible_lights,
     ) in &mut views
     {
-        let default_render_groups = RenderGroups::default();
-        let view_groups = maybe_groups.unwrap_or(&default_render_groups);
+        let view_groups = extract_render_groups(maybe_inherited, maybe_groups);
 
         let clusters = clusters.into_inner();
 
@@ -1596,8 +1602,7 @@ pub(crate) fn assign_lights_to_clusters(
         let mut update_from_light_intersections = |visible_lights: &mut Vec<Entity>| {
             for light in &lights {
                 // check if the light layers overlap the view layers
-                let default_render_groups = RenderGroups::default();
-                if !view_groups.intersects(&default_render_groups) {//&light.render_groups) {
+                if !view_groups.intersects(&RenderGroups::default()) {//&light.render_groups) {
                     continue;
                 }
 
@@ -2015,6 +2020,7 @@ pub fn check_light_mesh_visibility(
         &CubemapFrusta,
         &mut CubemapVisibleEntities,
         Option<&RenderGroups>,
+        Option<&InheritedRenderGroups>,
     )>,
     mut spot_lights: Query<(
         &SpotLight,
@@ -2022,6 +2028,7 @@ pub fn check_light_mesh_visibility(
         &Frustum,
         &mut VisibleEntities,
         Option<&RenderGroups>,
+        Option<&InheritedRenderGroups>,
     )>,
     mut directional_lights: Query<
         (
@@ -2029,6 +2036,7 @@ pub fn check_light_mesh_visibility(
             &CascadesFrusta,
             &mut CascadesVisibleEntities,
             Option<&RenderGroups>,
+            Option<&InheritedRenderGroups>,
             &mut ViewVisibility,
         ),
         Without<SpotLight>,
@@ -2039,6 +2047,7 @@ pub fn check_light_mesh_visibility(
             &InheritedVisibility,
             &mut ViewVisibility,
             Option<&RenderGroups>,
+            Option<&InheritedRenderGroups>,
             Option<&Aabb>,
             Option<&GlobalTransform>,
         ),
@@ -2062,8 +2071,7 @@ pub fn check_light_mesh_visibility(
     }
 
     // Directional lights
-    let default_render_groups = RenderGroups::default();
-    for (directional_light, frusta, mut visible_entities, maybe_view_mask, light_view_visibility) in
+    for (directional_light, frusta, mut visible_entities, maybe_view_mask, maybe_vm_inherited, light_view_visibility) in
         &mut directional_lights
     {
         // Re-use already allocated entries where possible.
@@ -2094,13 +2102,14 @@ pub fn check_light_mesh_visibility(
             continue;
         }
 
-        let view_mask = maybe_view_mask.unwrap_or(&default_render_groups);
+        let view_mask = render_groups_asref(maybe_vm_inherited, maybe_view_mask);
 
         for (
             entity,
             inherited_visibility,
             mut view_visibility,
             maybe_entity_mask,
+            maybe_em_inherited,
             maybe_aabb,
             maybe_transform,
         ) in &mut visible_entity_query
@@ -2109,8 +2118,7 @@ pub fn check_light_mesh_visibility(
                 continue;
             }
 
-            let entity_mask = maybe_entity_mask.unwrap_or(&default_render_groups);
-            if !view_mask.intersects(&entity_mask) {
+            if !view_mask.intersects(&render_groups_asref(maybe_em_inherited, maybe_entity_mask)) {
                 continue;
             }
 
@@ -2163,6 +2171,7 @@ pub fn check_light_mesh_visibility(
                 cubemap_frusta,
                 mut cubemap_visible_entities,
                 maybe_view_mask,
+                maybe_vm_inherited,
             )) = point_lights.get_mut(light_entity)
             {
                 for visible_entities in cubemap_visible_entities.iter_mut() {
@@ -2174,7 +2183,7 @@ pub fn check_light_mesh_visibility(
                     continue;
                 }
 
-                let view_mask = maybe_view_mask.unwrap_or(&default_render_groups);
+                let view_mask = render_groups_asref(maybe_vm_inherited, maybe_view_mask);
                 let light_sphere = Sphere {
                     center: Vec3A::from(transform.translation()),
                     radius: point_light.range,
@@ -2185,6 +2194,7 @@ pub fn check_light_mesh_visibility(
                     inherited_visibility,
                     mut view_visibility,
                     maybe_entity_mask,
+                    maybe_em_inherited,
                     maybe_aabb,
                     maybe_transform,
                 ) in &mut visible_entity_query
@@ -2193,8 +2203,7 @@ pub fn check_light_mesh_visibility(
                         continue;
                     }
 
-                    let entity_mask = maybe_entity_mask.unwrap_or(&default_render_groups);
-                    if !view_mask.intersects(&entity_mask) {
+                    if !view_mask.intersects(&render_groups_asref(maybe_em_inherited, maybe_entity_mask)) {
                         continue;
                     }
 
@@ -2229,7 +2238,7 @@ pub fn check_light_mesh_visibility(
             }
 
             // Spot lights
-            if let Ok((point_light, transform, frustum, mut visible_entities, maybe_view_mask)) =
+            if let Ok((point_light, transform, frustum, mut visible_entities, maybe_view_mask, maybe_vm_inherited)) =
                 spot_lights.get_mut(light_entity)
             {
                 visible_entities.entities.clear();
@@ -2239,7 +2248,7 @@ pub fn check_light_mesh_visibility(
                     continue;
                 }
 
-                let view_mask = maybe_view_mask.unwrap_or(&default_render_groups);
+                let view_mask = render_groups_asref(maybe_vm_inherited, maybe_view_mask);
                 let light_sphere = Sphere {
                     center: Vec3A::from(transform.translation()),
                     radius: point_light.range,
@@ -2250,6 +2259,7 @@ pub fn check_light_mesh_visibility(
                     inherited_visibility,
                     mut view_visibility,
                     maybe_entity_mask,
+                    maybe_em_inherited,
                     maybe_aabb,
                     maybe_transform,
                 ) in &mut visible_entity_query
@@ -2258,8 +2268,7 @@ pub fn check_light_mesh_visibility(
                         continue;
                     }
 
-                    let entity_mask = maybe_entity_mask.unwrap_or(&default_render_groups);
-                    if !view_mask.intersects(&entity_mask) {
+                    if !view_mask.intersects(&render_groups_asref(maybe_em_inherited, maybe_entity_mask)) {
                         continue;
                     }
 
