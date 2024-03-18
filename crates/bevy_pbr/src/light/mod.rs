@@ -14,7 +14,7 @@ use bevy_render::{
     render_resource::BufferBindingType,
     renderer::RenderDevice,
     view::{
-        extract_render_groups, InheritedRenderGroups, InheritedVisibility, render_groups_asref, RenderGroups,
+        extract_render_groups, InheritedRenderGroups, InheritedVisibility, derive_render_groups, RenderGroups,
         ViewVisibility, VisibleEntities
     },
 };
@@ -2102,7 +2102,7 @@ pub fn check_light_mesh_visibility(
             continue;
         }
 
-        let view_mask = render_groups_asref(maybe_vm_inherited, maybe_view_mask);
+        let view_mask = derive_render_groups(maybe_vm_inherited, maybe_view_mask);
 
         for (
             entity,
@@ -2118,7 +2118,7 @@ pub fn check_light_mesh_visibility(
                 continue;
             }
 
-            if !view_mask.intersects(&render_groups_asref(maybe_em_inherited, maybe_entity_mask)) {
+            if !view_mask.intersects(&derive_render_groups(maybe_em_inherited, maybe_entity_mask)) {
                 continue;
             }
 
@@ -2183,7 +2183,7 @@ pub fn check_light_mesh_visibility(
                     continue;
                 }
 
-                let view_mask = render_groups_asref(maybe_vm_inherited, maybe_view_mask);
+                let view_mask = derive_render_groups(maybe_vm_inherited, maybe_view_mask);
                 let light_sphere = Sphere {
                     center: Vec3A::from(transform.translation()),
                     radius: point_light.range,
@@ -2203,7 +2203,7 @@ pub fn check_light_mesh_visibility(
                         continue;
                     }
 
-                    if !view_mask.intersects(&render_groups_asref(maybe_em_inherited, maybe_entity_mask)) {
+                    if !view_mask.intersects(&derive_render_groups(maybe_em_inherited, maybe_entity_mask)) {
                         continue;
                     }
 
@@ -2248,7 +2248,7 @@ pub fn check_light_mesh_visibility(
                     continue;
                 }
 
-                let view_mask = render_groups_asref(maybe_vm_inherited, maybe_view_mask);
+                let view_mask = derive_render_groups(maybe_vm_inherited, maybe_view_mask);
                 let light_sphere = Sphere {
                     center: Vec3A::from(transform.translation()),
                     radius: point_light.range,
@@ -2268,7 +2268,7 @@ pub fn check_light_mesh_visibility(
                         continue;
                     }
 
-                    if !view_mask.intersects(&render_groups_asref(maybe_em_inherited, maybe_entity_mask)) {
+                    if !view_mask.intersects(&derive_render_groups(maybe_em_inherited, maybe_entity_mask)) {
                         continue;
                     }
 
