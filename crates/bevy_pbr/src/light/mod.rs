@@ -14,8 +14,8 @@ use bevy_render::{
     render_resource::BufferBindingType,
     renderer::RenderDevice,
     view::{
-        derive_render_groups, extract_render_groups, InheritedRenderGroups, InheritedVisibility,
-        RenderGroups, ViewVisibility, VisibleEntities,
+        CameraView, derive_render_groups, derive_render_groups_ptr, extract_camera_view, InheritedRenderGroups,
+        InheritedVisibility, RenderGroups, RenderGroupsPtr, ViewVisibility, VisibleEntities,
     },
 };
 use bevy_transform::components::{GlobalTransform, Transform};
@@ -1193,7 +1193,6 @@ pub(crate) fn directional_light_order(
         .then_with(|| entity_1.cmp(entity_2)) // stable
 }
 
-#[derive(Clone, Copy)]
 // data required for assigning lights to clusters
 pub(crate) struct PointLightAssignmentData {
     entity: Entity,
@@ -1201,7 +1200,7 @@ pub(crate) struct PointLightAssignmentData {
     range: f32,
     shadows_enabled: bool,
     spot_light_angle: Option<f32>,
-    render_groups: u32,
+    render_groups: RenderGroupsPtr,
 }
 
 impl PointLightAssignmentData {
@@ -1212,6 +1211,11 @@ impl PointLightAssignmentData {
         }
     }
 }
+
+/// SAFETY: PointLightAssignmentData is only used in `assign_lights_to_clusters`, where it is not reused
+/// between system calls.
+unsafe impl Send for PointLightAssignmentData { }
+unsafe impl Sync for PointLightAssignmentData { }
 
 #[derive(Resource, Default)]
 pub struct GlobalVisiblePointLights {
@@ -1232,7 +1236,7 @@ impl GlobalVisiblePointLights {
 
 // NOTE: Run this before update_point_light_frusta!
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn assign_lights_to_clusters(
+pub(crate) fn assign_lights_to_clusters<'w, 's>(
     mut commands: Commands,
     mut global_lights: ResMut<GlobalVisiblePointLights>,
     mut views: Query<(
@@ -1242,8 +1246,7 @@ pub(crate) fn assign_lights_to_clusters(
         &Frustum,
         &ClusterConfig,
         &mut Clusters,
-        Option<&RenderGroups>,
-        Option<&InheritedRenderGroups>,
+        Option<&CameraView>,
         Option<&mut VisiblePointLights>,
     )>,
     point_lights_query: Query<(
@@ -1279,14 +1282,14 @@ pub(crate) fn assign_lights_to_clusters(
             .iter()
             .filter(|(.., visibility)| visibility.get())
             .map(
-                |(entity, transform, point_light, _maybe_groups, _maybe_inherited, _visibility)| {
+                |(entity, transform, point_light, maybe_groups, maybe_inherited, _visibility)| {
                     PointLightAssignmentData {
                         entity,
                         transform: GlobalTransform::from_translation(transform.translation()),
                         shadows_enabled: point_light.shadows_enabled,
                         range: point_light.range,
                         spot_light_angle: None,
-                        render_groups: 0u32, //extract_render_groups(maybe_inherited, maybe_groups),
+                        render_groups: derive_render_groups_ptr(maybe_inherited, maybe_groups),
                     }
                 },
             ),
@@ -1296,14 +1299,14 @@ pub(crate) fn assign_lights_to_clusters(
             .iter()
             .filter(|(.., visibility)| visibility.get())
             .map(
-                |(entity, transform, spot_light, _maybe_groups, _maybe_inherited, _visibility)| {
+                |(entity, transform, spot_light, maybe_groups, maybe_inherited, _visibility)| {
                     PointLightAssignmentData {
                         entity,
                         transform: *transform,
                         shadows_enabled: spot_light.shadows_enabled,
                         range: spot_light.range,
                         spot_light_angle: Some(spot_light.outer_angle),
-                        render_groups: 0u32, //extract_render_groups(maybe_inherited, maybe_groups),
+                        render_groups: derive_render_groups_ptr(maybe_inherited, maybe_groups),
                     }
                 },
             ),
@@ -1334,7 +1337,7 @@ pub(crate) fn assign_lights_to_clusters(
         // check each light against each view's frustum, keep only those that affect at least one of our views
         let frusta: Vec<_> = views
             .iter()
-            .map(|(_, _, _, frustum, _, _, _, _, _)| *frustum)
+            .map(|(_, _, _, frustum, _, _, _, _)| *frustum)
             .collect();
         let mut lights_in_view_count = 0;
         lights.retain(|light| {
@@ -1373,12 +1376,11 @@ pub(crate) fn assign_lights_to_clusters(
         frustum,
         config,
         clusters,
-        maybe_groups,
-        maybe_inherited,
+        maybe_view,
         mut visible_lights,
     ) in &mut views
     {
-        let view_groups = extract_render_groups(maybe_inherited, maybe_groups);
+        let view_groups = extract_camera_view(view_entity, maybe_view);
 
         let clusters = clusters.into_inner();
 
@@ -1601,9 +1603,11 @@ pub(crate) fn assign_lights_to_clusters(
 
         let mut update_from_light_intersections = |visible_lights: &mut Vec<Entity>| {
             for light in &lights {
-                // check if the light layers overlap the view layers
-                if !view_groups.intersects(&RenderGroups::default()) {
-                    //&light.render_groups) {
+                // check if the light groups overlap the view groups
+                // SAFETY: `lights` is cleared at the start of this system call, and is populated from
+                // immutable queries.
+                let light_rendergroups = unsafe { light.render_groups.get() };
+                if !view_groups.intersects(&light_rendergroups) {
                     continue;
                 }
 
