@@ -1213,9 +1213,11 @@ impl PointLightAssignmentData {
     }
 }
 
-/// SAFETY: PointLightAssignmentData is only used in `assign_lights_to_clusters`, where it is not reused
-/// between system calls.
+// SAFETY: `PointLightAssignmentData` is only used in `assign_lights_to_clusters`, where it is not reused
+// between system calls.
 unsafe impl Send for PointLightAssignmentData {}
+// SAFETY: `PointLightAssignmentData` is only used in `assign_lights_to_clusters`, where it is not reused
+// between system calls.
 unsafe impl Sync for PointLightAssignmentData {}
 
 #[derive(Resource, Default)]
@@ -1608,7 +1610,7 @@ pub(crate) fn assign_lights_to_clusters(
                 // SAFETY: `lights` is cleared at the start of this system call, and is populated from
                 // immutable queries.
                 let light_rendergroups = unsafe { light.render_groups.get() };
-                if !view_groups.intersects(&light_rendergroups) {
+                if !view_groups.intersects(light_rendergroups) {
                     continue;
                 }
 
