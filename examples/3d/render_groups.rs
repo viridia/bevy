@@ -50,7 +50,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     commands.spawn((
         TextBundle::from_section(
-            "Press '1..3' to toggle camera render layers",
+            "Press '1..3' to toggle camera render layers\n\
+            Press '4..6' to toggle directional light render layers",
             TextStyle {
                 font_size: 20.,
                 ..default()
@@ -79,8 +80,16 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     }
 }
 
-fn toggle_layers(mut query: Query<&mut CameraView>, keyboard: Res<ButtonInput<KeyCode>>) {
-    let Ok(mut camera_view) = query.get_single_mut() else {
+fn toggle_layers(
+    mut query_camera: Query<&mut CameraView>,
+    mut query_light: Query<&mut RenderGroups, With<DirectionalLight>>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+) {
+    let Ok(mut camera_view) = query_camera.get_single_mut() else {
+        return;
+    };
+
+    let Ok(mut light_groups) = query_light.get_single_mut() else {
         return;
     };
 
@@ -93,6 +102,16 @@ fn toggle_layers(mut query: Query<&mut CameraView>, keyboard: Res<ButtonInput<Ke
     if keyboard.just_pressed(KeyCode::Digit3) {
         toggle_camera_layer(&mut camera_view, 3);
     }
+
+    if keyboard.just_pressed(KeyCode::Digit4) {
+        toggle_render_layer(&mut light_groups, 1);
+    }
+    if keyboard.just_pressed(KeyCode::Digit5) {
+        toggle_render_layer(&mut light_groups, 2);
+    }
+    if keyboard.just_pressed(KeyCode::Digit6) {
+        toggle_render_layer(&mut light_groups, 3);
+    }
 }
 
 fn toggle_camera_layer(camera_view: &mut CameraView, layer: usize) {
@@ -100,5 +119,13 @@ fn toggle_camera_layer(camera_view: &mut CameraView, layer: usize) {
         camera_view.remove(layer);
     } else {
         camera_view.add(layer);
+    }
+}
+
+fn toggle_render_layer(groups: &mut RenderGroups, layer: usize) {
+    if groups.contains_layer(layer) {
+        groups.remove(layer);
+    } else {
+        groups.add(layer);
     }
 }
