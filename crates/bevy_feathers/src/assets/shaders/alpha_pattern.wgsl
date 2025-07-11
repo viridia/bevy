@@ -9,7 +9,7 @@ fn fragment(in: UiVertexOutput) -> @location(0) vec4<f32> {
 
     let size = vec2<f32>(in.size.x, in.size.y);
     let external_distance = sd_rounded_box((in.uv - 0.5) * size, size, in.border_radius);
-    let alpha = smoothstep(0.5, -0.5, external_distance);
+    let alpha = smoothstep(0.0, -1.0, external_distance);
 
     return vec4<f32>(bg, alpha);
 }
