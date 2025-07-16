@@ -122,6 +122,12 @@ pub fn create_dark_theme() -> ThemeProps {
                 tokens::SWITCH_SLIDE_DISABLED.into(),
                 palette::LIGHT_GRAY_2.with_alpha(0.3),
             ),
+            // Subpane
+            (tokens::SUBPANE_HEADER_BG.into(), palette::GRAY_2),
+            (tokens::SUBPANE_HEADER_BORDER.into(), palette::GRAY_3),
+            (tokens::SUBPANE_HEADER_TEXT.into(), palette::LIGHT_GRAY_1),
+            (tokens::SUBPANE_BODY_BG.into(), palette::GRAY_1),
+            (tokens::SUBPANE_BODY_BORDER.into(), palette::GRAY_2),
         ]),
     }
 }

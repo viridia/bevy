@@ -120,3 +120,16 @@ pub const SWITCH_BORDER_DISABLED: &str = "feathers.switch.border.disabled";
 pub const SWITCH_SLIDE: &str = "feathers.switch.slide";
 /// Switch slide (disabled)
 pub const SWITCH_SLIDE_DISABLED: &str = "feathers.switch.slide.disabled";
+
+// Subpane
+
+/// Header background
+pub const SUBPANE_HEADER_BG: &str = "feathers.subpane.header.bg";
+/// Header border
+pub const SUBPANE_HEADER_BORDER: &str = "feathers.subpane.header.border";
+/// Header text color
+pub const SUBPANE_HEADER_TEXT: &str = "feathers.subpane.header.text";
+/// Body background
+pub const SUBPANE_BODY_BG: &str = "feathers.subpane.body.bg";
+/// Body border
+pub const SUBPANE_BODY_BORDER: &str = "feathers.subpane.body.border";

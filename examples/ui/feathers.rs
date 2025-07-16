@@ -6,6 +6,7 @@ use bevy::{
         SliderStep,
     },
     feathers::{
+        containers::{subpane, subpane_body, subpane_header},
         controls::{
             button, checkbox, radio, slider, toggle_switch, ButtonProps, ButtonVariant,
             CheckboxProps, SliderProps, ToggleSwitchProps,
@@ -55,8 +56,8 @@ fn demo_root() -> impl Scene {
             align_items: AlignItems::Start,
             justify_content: JustifyContent::Start,
             display: Display::Flex,
-            flex_direction: FlexDirection::Column,
-            row_gap: Val::Px(10.0),
+            flex_direction: FlexDirection::Row,
+            column_gap: Val::Px(10.0),
         }
         TabGroup
         ThemeBackgroundColor(tokens::WINDOW_BG)
@@ -216,6 +217,29 @@ fn demo_root() -> impl Scene {
                     SliderStep(10.)
                     SliderPrecision(2)
                 ),
+            ],
+                        Node {
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Stretch,
+                justify_content: JustifyContent::Start,
+                padding: UiRect::all(Val::Px(8.0)),
+                row_gap: Val::Px(8.0),
+                width: Val::Percent(30.),
+                min_width: Val::Px(200.),
+            } [
+                (
+                    :subpane [
+                        :subpane_header [
+                            (Text::new("Left") ThemedText),
+                            (Text::new("Center") ThemedText),
+                            (Text::new("Right") ThemedText)
+                        ],
+                        :subpane_body [
+                            (Text::new("Body") ThemedText),
+                        ],
+                    ]
+                )
             ]
         ]
     }
