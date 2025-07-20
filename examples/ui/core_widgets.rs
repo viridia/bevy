@@ -822,6 +822,7 @@ fn spawn_popup(menu: Query<Entity, With<DemoMenuButton>>, mut commands: Commands
                         gap: 2.0,
                     },
                 ],
+                window_margin: 10.0,
             },
             OverrideClip,
         ))

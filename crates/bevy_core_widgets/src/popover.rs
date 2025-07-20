@@ -1,6 +1,6 @@
 //! Framework for positioning of popups, tooltips, and other popover UI elements.
 
-use bevy_app::{App, Plugin, PreUpdate};
+use bevy_app::{App, Plugin, PostUpdate};
 use bevy_ecs::{
     change_detection::DetectChangesMut, component::Component, hierarchy::ChildOf, query::Without,
     schedule::IntoScheduleConfigs, system::Query,
@@ -76,12 +76,16 @@ pub struct PopoverPlacement {
 pub struct Popover {
     /// List of potential positions for the popover element relative to the parent.
     pub positions: Vec<PopoverPlacement>,
+
+    /// Indicates how close to the window edge the popup is allowed to go.
+    pub window_margin: f32,
 }
 
 impl Clone for Popover {
     fn clone(&self) -> Self {
         Self {
             positions: self.positions.clone(),
+            window_margin: self.window_margin,
         }
     }
 }
@@ -104,12 +108,8 @@ fn position_popover(
         let window_rect = Rect {
             min: Vec2::ZERO,
             max: computed_target.logical_size(),
-        };
-
-        // Logical size isn't set initially, ignore until it is.
-        if window_rect.area() <= 0.0 {
-            continue;
         }
+        .inflate(-popover.window_margin);
 
         // Compute the parent rectangle.
         let Ok((parent_node, parent_transform)) = q_parent.get(parent.parent()) else {
@@ -241,6 +241,6 @@ pub struct PopoverPlugin;
 
 impl Plugin for PopoverPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PreUpdate, position_popover.in_set(UiSystems::Prepare));
+        app.add_systems(PostUpdate, position_popover.in_set(UiSystems::Prepare));
     }
 }
