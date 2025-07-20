@@ -7,6 +7,8 @@ extern crate proc_macro;
 mod component;
 mod query_data;
 mod query_filter;
+mod template;
+mod variant_defaults;
 mod world_query;
 
 use crate::{
@@ -158,13 +160,6 @@ pub fn derive_bundle(input: TokenStream) -> TokenStream {
                 ids: &mut impl FnMut(Option<#ecs_path::component::ComponentId>)
             ) {
                 #(<#active_field_types as #ecs_path::bundle::Bundle>::get_component_ids(components, &mut *ids);)*
-            }
-
-            fn register_required_components(
-                components: &mut #ecs_path::component::ComponentsRegistrator,
-                required_components: &mut #ecs_path::component::RequiredComponents
-            ) {
-                #(<#active_field_types as #ecs_path::bundle::Bundle>::register_required_components(components, required_components);)*
             }
         }
     };
@@ -736,4 +731,16 @@ pub fn derive_from_world(input: TokenStream) -> TokenStream {
                 }
             }
     })
+}
+
+/// Derives GetTemplate.
+#[proc_macro_derive(GetTemplate, attributes(template, default))]
+pub fn derive_get_template(input: TokenStream) -> TokenStream {
+    template::derive_get_template(input)
+}
+
+/// Derives VariantDefaults.
+#[proc_macro_derive(VariantDefaults)]
+pub fn derive_variant_defaults(input: TokenStream) -> TokenStream {
+    variant_defaults::derive_variant_defaults(input)
 }

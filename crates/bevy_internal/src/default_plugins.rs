@@ -25,6 +25,8 @@ plugin_group! {
         bevy_asset:::AssetPlugin,
         #[cfg(feature = "bevy_scene")]
         bevy_scene:::ScenePlugin,
+        #[cfg(feature = "bevy_scene2")]
+        bevy_scene2:::ScenePlugin,
         #[cfg(feature = "bevy_winit")]
         bevy_winit:::WinitPlugin,
         #[cfg(feature = "bevy_render")]
@@ -46,6 +48,8 @@ plugin_group! {
         bevy_text:::TextPlugin,
         #[cfg(feature = "bevy_ui")]
         bevy_ui:::UiPlugin,
+        #[cfg(feature = "bevy_ui_render")]
+        bevy_ui_render:::UiRenderPlugin,
         #[cfg(feature = "bevy_pbr")]
         bevy_pbr:::PbrPlugin,
         // NOTE: Load this after renderer initialization so that it knows about the supported

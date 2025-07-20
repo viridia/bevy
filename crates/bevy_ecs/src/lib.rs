@@ -54,6 +54,7 @@ pub mod schedule;
 pub mod spawn;
 pub mod storage;
 pub mod system;
+pub mod template;
 pub mod traversal;
 pub mod world;
 
@@ -79,7 +80,8 @@ pub mod prelude {
         entity::{ContainsEntity, Entity, EntityMapper},
         error::{BevyError, Result},
         event::{
-            BufferedEvent, EntityEvent, Event, EventMutator, EventReader, EventWriter, Events,
+            BufferedEvent, EntityEvent, Event, EventKey, EventMutator, EventReader, EventWriter,
+            Events,
         },
         hierarchy::{ChildOf, ChildSpawner, ChildSpawnerCommands, Children},
         lifecycle::{
@@ -103,6 +105,7 @@ pub mod prelude {
             Res, ResMut, Single, System, SystemIn, SystemInput, SystemParamBuilder,
             SystemParamFunction, When,
         },
+        template::{GetTemplate, Template},
         world::{
             EntityMut, EntityRef, EntityWorldMut, FilteredResources, FilteredResourcesMut,
             FromWorld, World,
@@ -123,6 +126,8 @@ pub mod prelude {
     #[cfg(feature = "reflect_functions")]
     pub use crate::reflect::AppFunctionRegistry;
 }
+
+pub use bevy_ecs_macros::VariantDefaults;
 
 /// Exports used by macros.
 ///
@@ -2774,5 +2779,18 @@ mod tests {
         struct CloneFunction;
 
         fn custom_clone(_source: &SourceComponent, _ctx: &mut ComponentCloneCtx) {}
+    }
+
+    #[test]
+    fn queue_register_component_toctou() {
+        for _ in 0..1000 {
+            let w = World::new();
+
+            std::thread::scope(|s| {
+                let c1 = s.spawn(|| w.components_queue().queue_register_component::<A>());
+                let c2 = s.spawn(|| w.components_queue().queue_register_component::<A>());
+                assert_eq!(c1.join().unwrap(), c2.join().unwrap());
+            });
+        }
     }
 }

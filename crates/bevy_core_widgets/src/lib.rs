@@ -23,9 +23,10 @@ mod core_scrollbar;
 mod core_slider;
 pub mod popover;
 
-use bevy_app::{App, Plugin};
+use bevy_app::{PluginGroup, PluginGroupBuilder};
 
-pub use callback::{Callback, Notify};
+use bevy_ecs::entity::Entity;
+pub use callback::{callback, Callback, CallbackTemplate, Notify};
 pub use core_button::{CoreButton, CoreButtonPlugin};
 pub use core_checkbox::{CoreCheckbox, CoreCheckboxPlugin, SetChecked, ToggleChecked};
 pub use core_menu::{CoreMenuItem, CoreMenuPlugin, CoreMenuPopup};
@@ -36,25 +37,37 @@ pub use core_scrollbar::{
 };
 pub use core_slider::{
     CoreSlider, CoreSliderDragState, CoreSliderPlugin, CoreSliderThumb, SetSliderValue,
-    SliderRange, SliderStep, SliderValue, TrackClick,
+    SliderPrecision, SliderRange, SliderStep, SliderValue, TrackClick,
 };
 
 use crate::popover::PopoverPlugin;
 
-/// A plugin that registers the observers for all of the core widgets. If you don't want to
+/// A plugin group that registers the observers for all of the core widgets. If you don't want to
 /// use all of the widgets, you can import the individual widget plugins instead.
-pub struct CoreWidgetsPlugin;
+pub struct CoreWidgetsPlugins;
 
-impl Plugin for CoreWidgetsPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_plugins((
-            PopoverPlugin,
-            CoreButtonPlugin,
-            CoreCheckboxPlugin,
-            CoreMenuPlugin,
-            CoreRadioGroupPlugin,
-            CoreScrollbarPlugin,
-            CoreSliderPlugin,
-        ));
+impl PluginGroup for CoreWidgetsPlugins {
+    fn build(self) -> PluginGroupBuilder {
+        PluginGroupBuilder::start::<Self>()
+            .add(PopoverPlugin)
+            .add(CoreButtonPlugin)
+            .add(CoreCheckboxPlugin)
+            .add(CoreMenuPlugin)
+            .add(CoreRadioGroupPlugin)
+            .add(CoreScrollbarPlugin)
+            .add(CoreSliderPlugin)
     }
+}
+
+/// Notification sent by a button or menu item.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Activate(pub Entity);
+
+/// Notification sent by a widget that edits a scalar value.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ValueChange<T> {
+    /// The id of the widget that produced this value.
+    pub source: Entity,
+    /// The new value.
+    pub value: T,
 }
