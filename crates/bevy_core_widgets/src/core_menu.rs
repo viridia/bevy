@@ -2,16 +2,16 @@
 
 use accesskit::Role;
 use bevy_a11y::AccessibilityNode;
-use bevy_app::{App, Plugin};
+use bevy_app::{App, Plugin, Update};
 use bevy_ecs::{
     component::Component,
     entity::Entity,
     event::{EntityEvent, Event},
     hierarchy::ChildOf,
-    lifecycle::Add,
     observer::On,
-    query::{Has, With},
-    system::{Commands, Query, ResMut},
+    query::{Has, With, Without},
+    schedule::IntoScheduleConfigs,
+    system::{Commands, In, Query, Res, ResMut},
 };
 use bevy_input::{
     keyboard::{KeyCode, KeyboardInput},
@@ -19,13 +19,13 @@ use bevy_input::{
 };
 use bevy_input_focus::{
     tab_navigation::{NavAction, TabGroup, TabNavigation},
-    AcquireFocus, FocusedInput, InputFocus,
+    FocusedInput, InputFocus,
 };
 use bevy_log::warn;
-use bevy_ui::InteractionDisabled;
-use bevy_window::PrimaryWindow;
+use bevy_picking::events::{Cancel, Click, DragEnd, Pointer, Press, Release};
+use bevy_ui::{InteractionDisabled, Pressed};
 
-use crate::{Callback, Notify};
+use crate::{Activate, Callback, Notify};
 
 /// Event use to control the state of the open menu. This bubbles upwards from the menu items
 /// and the menu container, through the portal relation, and to the menu owner entity.
@@ -34,33 +34,31 @@ use crate::{Callback, Notify};
 /// This means that depending on direction, focus movement may move to the next menu item, or
 /// the next menu. This also means that different events will often be handled at different
 /// levels of the hierarchy - some being handled by the popup, and some by the popup's owner.
-#[derive(Event, EntityEvent, Clone)]
+#[derive(Event, EntityEvent, Clone, Debug)]
+#[entity_event(traversal = &'static ChildOf, auto_propagate)]
 pub enum MenuEvent {
     /// Indicates we want to open the menu, if it is not already open.
     Open,
     /// Close the menu and despawn it. Despawning may not happen immediately if there is a closing
     /// transition animation.
     Close,
-    /// Close the entire menu stack. The boolean argument indicates whether we want to retain
-    /// focus on the menu owner (the menu button). Whether this is true will depend on the reason
-    /// for closing: a click on the background should not restore focus to the button.
-    CloseAll(bool),
-    /// Move the input focus to the first child in the parent's hierarchy (Home).
-    FocusFirst,
-    /// Move the input focus to the last child in the parent's hierarchy (End).
-    FocusLast,
-    /// Move the input focus to the previous child in the parent's hierarchy (Shift-Tab).
-    FocusPrev,
-    /// Move the input focus to the next child in the parent's hierarchy (Tab).
-    FocusNext,
-    /// Move the input focus up (Arrow-Up).
-    FocusUp,
-    /// Move the input focus down (Arrow-Down).
-    FocusDown,
-    /// Move the input focus left (Arrow-Left).
-    FocusLeft,
-    /// Move the input focus right (Arrow-Right).
-    FocusRight,
+    /// Close the entire menu stack.
+    CloseAll,
+    /// Set focus to the menu button or other owner of the popup stack. This happens when
+    /// the escape key is pressed.
+    FocusRoot,
+}
+
+/// Specifies the layout direction of the menu, for keyboard navigation
+#[derive(Default, Debug, Clone, PartialEq)]
+pub enum MenuLayout {
+    /// A vertical stack. Up and down arrows to move between items.
+    #[default]
+    Column,
+    /// A horizontal row. Left and right arrows to move between items.
+    Row,
+    /// A 2D grid. Arrow keys are not mapped, you'll need to write your own observer.
+    Grid,
 }
 
 /// Component that defines a popup menu container.
@@ -72,12 +70,16 @@ pub enum MenuEvent {
 ///
 /// * Clicking on another widget or empty space outside the menu will cause the menu to close.
 /// * Two menus cannot be displayed at the same time unless one is an ancestor of the other.
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Default, Clone)]
 #[require(
     AccessibilityNode(accesskit::Node::new(Role::MenuListPopup)),
     TabGroup::modal()
 )]
-pub struct CoreMenuPopup;
+#[require(CoreMenuAcquireFocus)]
+pub struct CoreMenuPopup {
+    /// The layout orientation of the menu
+    pub layout: MenuLayout,
+}
 
 /// Component that defines a menu item.
 #[derive(Component, Debug)]
@@ -85,20 +87,69 @@ pub struct CoreMenuPopup;
 pub struct CoreMenuItem {
     /// Callback to invoke when the menu item is clicked, or when the `Enter` or `Space` key
     /// is pressed while the item is focused.
-    pub on_activate: Callback,
+    pub on_activate: Callback<In<Activate>>,
 }
 
-fn menu_on_spawn(
-    ev: On<Add, CoreMenuPopup>,
+/// Component that indicates that we need to set focus to the first menu item.
+#[derive(Component, Debug, Default)]
+struct CoreMenuAcquireFocus;
+
+/// Component that indicates that the menu is closing.
+#[derive(Component, Debug, Default)]
+struct CoreMenuClosing;
+
+fn menu_acquire_focus(
+    q_menus: Query<Entity, (With<CoreMenuPopup>, With<CoreMenuAcquireFocus>)>,
     mut focus: ResMut<InputFocus>,
     tab_navigation: TabNavigation,
+    mut commands: Commands,
 ) {
-    // When a menu is spawned, attempt to find the first focusable menu item, and set focus
-    // to it.
-    if let Ok(next) = tab_navigation.initialize(ev.target(), NavAction::First) {
-        focus.0 = Some(next);
-    } else {
-        warn!("No focusable menu items for popup menu: {}", ev.target());
+    for menu in q_menus.iter() {
+        // When a menu is spawned, attempt to find the first focusable menu item, and set focus
+        // to it.
+        match tab_navigation.initialize(menu, NavAction::First) {
+            Ok(next) => {
+                commands.entity(menu).remove::<CoreMenuAcquireFocus>();
+                focus.0 = Some(next);
+            }
+            Err(e) => {
+                warn!(
+                    "No focusable menu items for popup menu: {}, error: {:?}",
+                    menu, e
+                );
+            }
+        }
+    }
+}
+
+fn menu_on_lose_focus(
+    q_menus: Query<
+        Entity,
+        (
+            With<CoreMenuPopup>,
+            Without<CoreMenuAcquireFocus>,
+            Without<CoreMenuClosing>,
+        ),
+    >,
+    q_parent: Query<&ChildOf>,
+    focus: Res<InputFocus>,
+    mut commands: Commands,
+) {
+    // Close any menu which doesn't contain the focus entity.
+    for menu in q_menus.iter() {
+        // TODO: Change this logic when we support submenus. Don't want to send multiple close
+        // events. Perhaps what we can do is add `CoreMenuClosing` to the whole stack.
+        let contains_focus = match focus.0 {
+            Some(focus_ent) => {
+                focus_ent == menu || q_parent.iter_ancestors(focus_ent).any(|ent| ent == menu)
+            }
+            None => false,
+        };
+
+        if !contains_focus {
+            commands.entity(menu).insert(CoreMenuClosing);
+            commands.trigger_targets(MenuEvent::CloseAll, menu);
+        }
     }
 }
 
@@ -106,6 +157,8 @@ fn menu_on_key_event(
     mut ev: On<FocusedInput<KeyboardInput>>,
     q_item: Query<(&CoreMenuItem, Has<InteractionDisabled>)>,
     q_menu: Query<&CoreMenuPopup>,
+    tab_navigation: TabNavigation,
+    mut focus: ResMut<InputFocus>,
     mut commands: Commands,
 ) {
     if let Ok((menu_item, disabled)) = q_item.get(ev.target()) {
@@ -116,8 +169,12 @@ fn menu_on_key_event(
                     // Activate the item and close the popup
                     KeyCode::Enter | KeyCode::Space => {
                         ev.propagate(false);
-                        commands.notify(&menu_item.on_activate);
-                        commands.trigger_targets(MenuEvent::CloseAll(true), ev.target());
+                        // Trigger the menu callback
+                        commands.notify_with(&menu_item.on_activate, Activate(ev.target()));
+                        // Set the focus to the menu button.
+                        commands.trigger_targets(MenuEvent::FocusRoot, ev.target());
+                        // Close the stack
+                        commands.trigger_targets(MenuEvent::CloseAll, ev.target());
                     }
 
                     _ => (),
@@ -131,43 +188,54 @@ fn menu_on_key_event(
                 // Close the popup
                 KeyCode::Escape => {
                     ev.propagate(false);
-                    commands.trigger_targets(MenuEvent::CloseAll(true), ev.target());
+                    // Set the focus to the menu button.
+                    commands.trigger_targets(MenuEvent::FocusRoot, ev.target());
+                    // Close the stack
+                    commands.trigger_targets(MenuEvent::CloseAll, ev.target());
                 }
 
                 // Focus the adjacent item in the up direction
                 KeyCode::ArrowUp => {
-                    ev.propagate(false);
-                    commands.trigger_targets(MenuEvent::FocusUp, ev.target());
+                    if menu.layout == MenuLayout::Column {
+                        ev.propagate(false);
+                        focus.0 = tab_navigation.navigate(&focus, NavAction::Previous).ok();
+                    }
                 }
 
                 // Focus the adjacent item in the down direction
                 KeyCode::ArrowDown => {
-                    ev.propagate(false);
-                    commands.trigger_targets(MenuEvent::FocusDown, ev.target());
+                    if menu.layout == MenuLayout::Column {
+                        ev.propagate(false);
+                        focus.0 = tab_navigation.navigate(&focus, NavAction::Next).ok();
+                    }
                 }
 
                 // Focus the adjacent item in the left direction
                 KeyCode::ArrowLeft => {
-                    ev.propagate(false);
-                    commands.trigger_targets(MenuEvent::FocusLeft, ev.target());
+                    if menu.layout == MenuLayout::Row {
+                        ev.propagate(false);
+                        focus.0 = tab_navigation.navigate(&focus, NavAction::Previous).ok();
+                    }
                 }
 
                 // Focus the adjacent item in the right direction
                 KeyCode::ArrowRight => {
-                    ev.propagate(false);
-                    commands.trigger_targets(MenuEvent::FocusRight, ev.target());
+                    if menu.layout == MenuLayout::Row {
+                        ev.propagate(false);
+                        focus.0 = tab_navigation.navigate(&focus, NavAction::Next).ok();
+                    }
                 }
 
                 // Focus the first item
                 KeyCode::Home => {
                     ev.propagate(false);
-                    commands.trigger_targets(MenuEvent::FocusFirst, ev.target());
+                    focus.0 = tab_navigation.navigate(&focus, NavAction::First).ok();
                 }
 
                 // Focus the last item
                 KeyCode::End => {
                     ev.propagate(false);
-                    commands.trigger_targets(MenuEvent::FocusLast, ev.target());
+                    focus.0 = tab_navigation.navigate(&focus, NavAction::Last).ok();
                 }
 
                 _ => (),
@@ -176,60 +244,101 @@ fn menu_on_key_event(
     }
 }
 
-fn menu_on_menu_event(
-    mut ev: On<MenuEvent>,
-    q_popup: Query<(), With<CoreMenuPopup>>,
-    q_parent: Query<&ChildOf>,
-    windows: Query<Entity, With<PrimaryWindow>>,
+fn menu_item_on_pointer_click(
+    mut ev: On<Pointer<Click>>,
+    mut q_state: Query<(&CoreMenuItem, Has<Pressed>, Has<InteractionDisabled>)>,
     mut commands: Commands,
 ) {
-    if q_popup.contains(ev.target()) {
-        match ev.event() {
-            MenuEvent::Open => todo!(),
-            MenuEvent::Close => {
-                ev.propagate(false);
-                commands.entity(ev.target()).despawn();
-            }
-            MenuEvent::CloseAll(retain_focus) => {
-                // For CloseAll, find the root menu popup and despawn it
-                // This will propagate the despawn to all child popups
-                let root_menu = q_parent
-                    .iter_ancestors(ev.target())
-                    .filter(|&e| q_popup.contains(e))
-                    .last()
-                    .unwrap_or(ev.target());
-
-                // Get the parent of the root menu and trigger an AcquireFocus event.
-                if let Ok(root_parent) = q_parent.get(root_menu) {
-                    if *retain_focus {
-                        if let Ok(window) = windows.single() {
-                            commands.trigger_targets(AcquireFocus { window }, root_parent.parent());
-                        }
-                    }
-                }
-
-                ev.propagate(false);
-                commands.entity(root_menu).despawn();
-            }
-            MenuEvent::FocusFirst => todo!(),
-            MenuEvent::FocusLast => todo!(),
-            MenuEvent::FocusPrev => todo!(),
-            MenuEvent::FocusNext => todo!(),
-            MenuEvent::FocusUp => todo!(),
-            MenuEvent::FocusDown => todo!(),
-            MenuEvent::FocusLeft => todo!(),
-            MenuEvent::FocusRight => todo!(),
+    if let Ok((bstate, pressed, disabled)) = q_state.get_mut(ev.target()) {
+        ev.propagate(false);
+        if pressed && !disabled {
+            // Trigger the menu callback.
+            commands.notify_with(&bstate.on_activate, Activate(ev.target()));
+            // Set the focus to the menu button.
+            commands.trigger_targets(MenuEvent::FocusRoot, ev.target());
+            // Close the stack
+            commands.trigger_targets(MenuEvent::CloseAll, ev.target());
         }
     }
 }
 
-/// Plugin that adds the observers for the [`CoreButton`] widget.
+fn menu_item_on_pointer_down(
+    mut ev: On<Pointer<Press>>,
+    mut q_state: Query<(Entity, Has<InteractionDisabled>, Has<Pressed>), With<CoreMenuItem>>,
+    mut commands: Commands,
+) {
+    if let Ok((item, disabled, pressed)) = q_state.get_mut(ev.target()) {
+        ev.propagate(false);
+        if !disabled && !pressed {
+            commands.entity(item).insert(Pressed);
+        }
+    }
+}
+
+fn menu_item_on_pointer_up(
+    mut ev: On<Pointer<Release>>,
+    mut q_state: Query<(Entity, Has<InteractionDisabled>, Has<Pressed>), With<CoreMenuItem>>,
+    mut commands: Commands,
+) {
+    if let Ok((item, disabled, pressed)) = q_state.get_mut(ev.target()) {
+        ev.propagate(false);
+        if !disabled && pressed {
+            commands.entity(item).remove::<Pressed>();
+        }
+    }
+}
+
+fn menu_item_on_pointer_drag_end(
+    mut ev: On<Pointer<DragEnd>>,
+    mut q_state: Query<(Entity, Has<InteractionDisabled>, Has<Pressed>), With<CoreMenuItem>>,
+    mut commands: Commands,
+) {
+    if let Ok((item, disabled, pressed)) = q_state.get_mut(ev.target()) {
+        ev.propagate(false);
+        if !disabled && pressed {
+            commands.entity(item).remove::<Pressed>();
+        }
+    }
+}
+
+fn menu_item_on_pointer_cancel(
+    mut ev: On<Pointer<Cancel>>,
+    mut q_state: Query<(Entity, Has<InteractionDisabled>, Has<Pressed>), With<CoreMenuItem>>,
+    mut commands: Commands,
+) {
+    if let Ok((item, disabled, pressed)) = q_state.get_mut(ev.target()) {
+        ev.propagate(false);
+        if !disabled && pressed {
+            commands.entity(item).remove::<Pressed>();
+        }
+    }
+}
+
+fn menu_on_menu_event(
+    mut ev: On<MenuEvent>,
+    q_popup: Query<(), With<CoreMenuPopup>>,
+    mut commands: Commands,
+) {
+    if q_popup.contains(ev.target()) {
+        if let MenuEvent::Close = ev.event() {
+            ev.propagate(false);
+            commands.entity(ev.target()).despawn();
+        }
+    }
+}
+
+/// Plugin that adds the observers for the [`CoreMenuItem`] widget.
 pub struct CoreMenuPlugin;
 
 impl Plugin for CoreMenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(menu_on_spawn)
+        app.add_systems(Update, (menu_acquire_focus, menu_on_lose_focus).chain())
             .add_observer(menu_on_key_event)
-            .add_observer(menu_on_menu_event);
+            .add_observer(menu_on_menu_event)
+            .add_observer(menu_item_on_pointer_down)
+            .add_observer(menu_item_on_pointer_up)
+            .add_observer(menu_item_on_pointer_click)
+            .add_observer(menu_item_on_pointer_drag_end)
+            .add_observer(menu_item_on_pointer_cancel);
     }
 }

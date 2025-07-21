@@ -29,7 +29,7 @@ use bevy_ecs::entity::Entity;
 pub use callback::{callback, Callback, CallbackTemplate, Notify};
 pub use core_button::{CoreButton, CoreButtonPlugin};
 pub use core_checkbox::{CoreCheckbox, CoreCheckboxPlugin, SetChecked, ToggleChecked};
-pub use core_menu::{CoreMenuItem, CoreMenuPlugin, CoreMenuPopup};
+pub use core_menu::{CoreMenuItem, CoreMenuPlugin, CoreMenuPopup, MenuEvent};
 pub use core_radio::{CoreRadio, CoreRadioGroup, CoreRadioGroupPlugin};
 pub use core_scrollbar::{
     ControlOrientation, CoreScrollbar, CoreScrollbarDragState, CoreScrollbarPlugin,

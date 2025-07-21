@@ -4,13 +4,13 @@ use bevy::{
     color::palettes::basic::*,
     core_widgets::{
         popover::{Popover, PopoverAlign, PopoverPlacement, PopoverSide},
-        Activate, Callback, CoreButton, CoreCheckbox, CoreMenuPopup, CoreRadio, CoreRadioGroup,
-        CoreSlider, CoreSliderDragState, CoreSliderThumb, CoreWidgetsPlugins, SliderRange,
-        SliderValue, TrackClick, ValueChange,
+        Activate, Callback, CoreButton, CoreCheckbox, CoreMenuItem, CoreMenuPopup, CoreRadio,
+        CoreRadioGroup, CoreSlider, CoreSliderDragState, CoreSliderThumb, CoreWidgetsPlugins,
+        MenuEvent, SliderRange, SliderValue, TrackClick, ValueChange,
     },
     input_focus::{
         tab_navigation::{TabGroup, TabIndex, TabNavigationPlugin},
-        InputDispatchPlugin,
+        InputDispatchPlugin, InputFocus,
     },
     picking::hover::Hovered,
     prelude::*,
@@ -43,6 +43,8 @@ fn main() {
                 update_slider_style2.after(update_widget_values),
                 update_checkbox_or_radio_style.after(update_widget_values),
                 update_checkbox_or_radio_style2.after(update_widget_values),
+                update_menu_item_style,
+                update_menu_item_style2,
                 toggle_disabled,
             ),
         )
@@ -79,9 +81,17 @@ struct DemoCheckbox;
 #[derive(Component, Default)]
 struct DemoRadio(TrackClick);
 
-/// Menuy button styling marker
+/// Menu anchor marker
+#[derive(Component)]
+struct DemoMenuAnchor;
+
+/// Menu button styling marker
 #[derive(Component)]
 struct DemoMenuButton;
+
+/// Menu item styling marker
+#[derive(Component)]
+struct DemoMenuItem;
 
 /// A struct to hold the state of various widgets shown in the demo.
 ///
@@ -225,43 +235,47 @@ fn button(asset_server: &AssetServer, on_click: Callback<In<Activate>>) -> impl 
 
 fn menu_button(asset_server: &AssetServer, on_activate: Callback<In<Activate>>) -> impl Bundle {
     (
-        Node {
-            width: Val::Px(200.0),
-            height: Val::Px(65.0),
-            border: UiRect::all(Val::Px(5.0)),
-            box_sizing: BoxSizing::BorderBox,
-            justify_content: JustifyContent::SpaceBetween,
-            align_items: AlignItems::Center,
-            padding: UiRect::axes(Val::Px(16.0), Val::Px(0.0)),
-            ..default()
-        },
-        DemoMenuButton,
-        CoreButton { on_activate },
-        Hovered::default(),
-        TabIndex(0),
-        BorderColor::all(Color::BLACK),
-        BorderRadius::all(Val::Px(5.0)),
-        BackgroundColor(NORMAL_BUTTON),
-        children![
-            (
-                Text::new("Menu"),
-                TextFont {
-                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                    font_size: 33.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                TextShadow::default(),
-            ),
-            (
-                Node {
-                    width: Val::Px(12.0),
-                    height: Val::Px(12.0),
-                    ..default()
-                },
-                BackgroundColor(GRAY.into()),
-            )
-        ],
+        Node { ..default() },
+        DemoMenuAnchor,
+        children![(
+            Node {
+                width: Val::Px(200.0),
+                height: Val::Px(65.0),
+                border: UiRect::all(Val::Px(5.0)),
+                box_sizing: BoxSizing::BorderBox,
+                justify_content: JustifyContent::SpaceBetween,
+                align_items: AlignItems::Center,
+                padding: UiRect::axes(Val::Px(16.0), Val::Px(0.0)),
+                ..default()
+            },
+            DemoMenuButton,
+            CoreButton { on_activate },
+            Hovered::default(),
+            TabIndex(0),
+            BorderColor::all(Color::BLACK),
+            BorderRadius::all(Val::Px(5.0)),
+            BackgroundColor(NORMAL_BUTTON),
+            children![
+                (
+                    Text::new("Menu"),
+                    TextFont {
+                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                        font_size: 33.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                    TextShadow::default(),
+                ),
+                (
+                    Node {
+                        width: Val::Px(12.0),
+                        height: Val::Px(12.0),
+                        ..default()
+                    },
+                    BackgroundColor(GRAY.into()),
+                )
+            ],
+        )],
     )
 }
 
@@ -796,24 +810,38 @@ fn radio(asset_server: &AssetServer, value: TrackClick, caption: &str) -> impl B
     )
 }
 
-fn spawn_popup(_: In<Activate>, menu: Query<Entity, With<DemoMenuButton>>, mut commands: Commands) {
+fn spawn_popup(
+    _: In<Activate>,
+    menu: Query<Entity, With<DemoMenuAnchor>>,
+    assets: Res<AssetServer>,
+    mut commands: Commands,
+) {
     let Ok(anchor) = menu.single() else {
         return;
     };
     let menu = commands
         .spawn((
             Node {
-                min_height: Val::Px(100.),
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
+                min_height: Val::Px(10.),
                 min_width: Val::Percent(100.),
-                border: UiRect::all(Val::Px(2.0)),
+                border: UiRect::all(Val::Px(1.0)),
                 position_type: PositionType::Absolute,
                 ..default()
             },
-            CoreMenuPopup,
+            CoreMenuPopup::default(),
             Visibility::Hidden, // Will be visible after positioning
             BorderColor::all(GREEN.into()),
             BackgroundColor(GRAY.into()),
-            ZIndex(100),
+            BoxShadow::new(
+                Srgba::BLACK.with_alpha(0.9).into(),
+                Val::Px(0.0),
+                Val::Px(0.0),
+                Val::Px(1.0),
+                Val::Px(4.0),
+            ),
+            GlobalZIndex(100),
             Popover {
                 positions: vec![
                     PopoverPlacement {
@@ -830,10 +858,125 @@ fn spawn_popup(_: In<Activate>, menu: Query<Entity, With<DemoMenuButton>>, mut c
                 window_margin: 10.0,
             },
             OverrideClip,
+            children![
+                menu_item(&assets),
+                menu_item(&assets),
+                menu_item(&assets),
+                menu_item(&assets)
+            ],
         ))
         .id();
     commands.entity(anchor).add_child(menu);
+    commands.entity(menu).observe(
+        move |mut ev: On<MenuEvent>, mut commands: Commands, mut focus: ResMut<InputFocus>| {
+            info!("Got menu event: {:?}", ev.event());
+            ev.propagate(false);
+            match ev.event() {
+                MenuEvent::Close | MenuEvent::CloseAll => commands.entity(menu).despawn(),
+                MenuEvent::FocusRoot => {
+                    focus.0 = Some(anchor);
+                }
+                _ => (),
+            }
+        },
+    );
     info!("Open menu");
+}
+
+fn menu_item(asset_server: &AssetServer) -> impl Bundle {
+    (
+        Node {
+            // width: Val::Px(150.0),
+            padding: UiRect::axes(Val::Px(8.0), Val::Px(2.0)),
+            // border: UiRect::all(Val::Px(5.0)),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Start,
+            ..default()
+        },
+        DemoMenuItem,
+        CoreMenuItem {
+            on_activate: Callback::Ignore,
+        },
+        Hovered::default(),
+        TabIndex(0),
+        BackgroundColor(NORMAL_BUTTON),
+        children![(
+            Text::new("Menu Item"),
+            TextFont {
+                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                font_size: 33.0,
+                ..default()
+            },
+            TextColor(Color::srgb(0.9, 0.9, 0.9)),
+            TextShadow::default(),
+        )],
+    )
+}
+
+fn update_menu_item_style(
+    mut buttons: Query<
+        (
+            Has<Pressed>,
+            &Hovered,
+            Has<InteractionDisabled>,
+            &mut BackgroundColor,
+        ),
+        (
+            Or<(
+                Changed<Pressed>,
+                Changed<Hovered>,
+                Added<InteractionDisabled>,
+            )>,
+            With<DemoMenuItem>,
+        ),
+    >,
+) {
+    for (pressed, hovered, disabled, mut color) in &mut buttons {
+        set_menu_item_style(disabled, hovered.get(), pressed, &mut color);
+    }
+}
+
+/// Supplementary system to detect removed marker components
+fn update_menu_item_style2(
+    mut buttons: Query<
+        (
+            Has<Pressed>,
+            &Hovered,
+            Has<InteractionDisabled>,
+            &mut BackgroundColor,
+        ),
+        With<DemoMenuItem>,
+    >,
+    mut removed_depressed: RemovedComponents<Pressed>,
+    mut removed_disabled: RemovedComponents<InteractionDisabled>,
+) {
+    removed_depressed
+        .read()
+        .chain(removed_disabled.read())
+        .for_each(|entity| {
+            if let Ok((pressed, hovered, disabled, mut color)) = buttons.get_mut(entity) {
+                set_menu_item_style(disabled, hovered.get(), pressed, &mut color);
+            }
+        });
+}
+
+fn set_menu_item_style(disabled: bool, hovered: bool, pressed: bool, color: &mut BackgroundColor) {
+    match (disabled, hovered, pressed) {
+        // Pressed and hovered menu item
+        (false, true, true) => {
+            *color = PRESSED_BUTTON.into();
+        }
+
+        // Hovered, unpressed menu item
+        (false, true, false) => {
+            *color = HOVERED_BUTTON.into();
+        }
+
+        // Unhovered menu item (either pressed or not).
+        _ => {
+            *color = NORMAL_BUTTON.into();
+        }
+    }
 }
 
 fn toggle_disabled(
