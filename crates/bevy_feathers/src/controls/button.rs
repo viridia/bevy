@@ -46,7 +46,7 @@ pub struct ButtonProps {
     /// Rounded corners options
     pub corners: RoundedCorners,
     /// Click handler
-    pub on_click: CallbackTemplate<In<Activate>>,
+    pub on_activate: CallbackTemplate<In<Activate>>,
 }
 
 /// Button scene function.
@@ -61,10 +61,9 @@ pub fn button(props: ButtonProps) -> impl Scene {
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
             padding: UiRect::axes(Val::Px(8.0), Val::Px(0.)),
-            flex_grow: 1.0,
         }
         CoreButton {
-            on_activate: {props.on_click.clone()},
+            on_activate: {props.on_activate.clone()},
         }
         template_value(props.variant)
         template_value(props.corners.to_border_radius(4.0))
@@ -95,7 +94,7 @@ pub fn tool_button(props: ButtonProps) -> impl Scene {
             padding: UiRect::axes(Val::Px(2.0), Val::Px(0.)),
         }
         CoreButton {
-            on_activate: {props.on_click.clone()},
+            on_activate: {props.on_activate.clone()},
         }
         template_value(props.variant)
         template_value(props.corners.to_border_radius(3.0))

@@ -7,15 +7,18 @@ use bevy::{
         SliderStep,
     },
     feathers::{
+        constants::icons,
         containers::{
             flex_spacer, pane, pane_body, pane_header, pane_header_divider, subpane, subpane_body,
             subpane_header,
         },
         controls::{
-            button, checkbox, radio, slider, toggle_switch, tool_button, ButtonProps,
-            ButtonVariant, CheckboxProps, SliderProps, ToggleSwitchProps,
+            button, checkbox, menu, menu_button, menu_item, menu_popup, radio, slider,
+            toggle_switch, tool_button, ButtonProps, ButtonVariant, CheckboxProps, MenuButtonProps,
+            MenuItemProps, SliderProps, ToggleSwitchProps,
         },
         dark_theme::create_dark_theme,
+        icon,
         rounded_corners::RoundedCorners,
         theme::{ThemeBackgroundColor, ThemedText, UiTheme},
         tokens, FeathersPlugin,
@@ -29,6 +32,7 @@ use bevy::{
     ui::{Checked, InteractionDisabled},
     winit::WinitSettings,
 };
+use bevy_ecs::template::template;
 
 fn main() {
     App::new()
@@ -85,28 +89,31 @@ fn demo_root() -> impl Scene {
                 } [
                     (
                         :button(ButtonProps {
-                            on_click: callback(|_: In<Activate>| {
+                            on_activate: callback(|_: In<Activate>| {
                                 info!("Normal button clicked!");
                             }),
                             ..default()
-                        }) [(Text("Normal") ThemedText)]
+                        })
+                        Node { flex_grow: 1.0 }
+                        [(Text("Normal") ThemedText)]
                     ),
                     (
                         :button(
                             ButtonProps {
-                                on_click: callback(|_: In<Activate>| {
+                                on_activate: callback(|_: In<Activate>| {
                                     info!("Disabled button clicked!");
                                 }),
                                 ..default()
                             },
                         )
+                        Node { flex_grow: 1.0 }
                         InteractionDisabled::default()
                         [(Text("Disabled") ThemedText)]
                     ),
                     (
                         :button(
                             ButtonProps {
-                                on_click: callback(|_: In<Activate>| {
+                                on_activate: callback(|_: In<Activate>| {
                                     info!("Primary button clicked!");
                                 }),
                                 variant: ButtonVariant::Primary,
@@ -114,6 +121,38 @@ fn demo_root() -> impl Scene {
                             },
                         ) [(Text("Primary") ThemedText)]
                     ),
+                    (
+                        :menu(|parent| {
+                            let popup = parent.commands().spawn_scene(bsn!(
+                                :menu_popup()
+                                [
+                                    (
+                                        :menu_item(MenuItemProps {
+                                            on_activate: callback(|_: In<Activate>| {
+                                                info!("Menu item clicked!");
+                                            })
+                                        }) [
+                                            (Text("MenuItem") ThemedText)
+                                        ]
+                                    ),
+                                    (
+                                        :menu_item(MenuItemProps {
+                                            on_activate: callback(|_: In<Activate>| {
+                                                info!("Menu item clicked!");
+                                            })
+                                        }) [
+                                            (Text("MenuItem") ThemedText)
+                                        ]
+                                    )
+                                ]
+                            )).id();
+                            parent.add_child(popup);
+                        }) [
+                            :menu_button(MenuButtonProps::default()) [
+                                (Text("Menu") ThemedText)
+                            ]
+                        ]
+                    )
                 ],
                 Node {
                     display: Display::Flex,
@@ -124,7 +163,7 @@ fn demo_root() -> impl Scene {
                 } [
                     (
                         :button(ButtonProps {
-                            on_click: callback(|_: In<Activate>| {
+                            on_activate: callback(|_: In<Activate>| {
                                 info!("Left button clicked!");
                             }),
                             corners: RoundedCorners::Left,
@@ -133,7 +172,7 @@ fn demo_root() -> impl Scene {
                     ),
                     (
                         :button(ButtonProps {
-                            on_click: callback(|_: In<Activate>| {
+                            on_activate: callback(|_: In<Activate>| {
                                 info!("Center button clicked!");
                             }),
                             corners: RoundedCorners::None,
@@ -142,7 +181,7 @@ fn demo_root() -> impl Scene {
                     ),
                     (
                         :button(ButtonProps {
-                            on_click: callback(|_: In<Activate>| {
+                            on_activate: callback(|_: In<Activate>| {
                                 info!("Right button clicked!");
                             }),
                             variant: ButtonVariant::Primary,
@@ -152,12 +191,14 @@ fn demo_root() -> impl Scene {
                 ],
                 :button(
                     ButtonProps {
-                        on_click: callback(|_: In<Activate>| {
+                        on_activate: callback(|_: In<Activate>| {
                             info!("Wide button clicked!");
                         }),
                         ..default()
                     }
-                ) [(Text("Button") ThemedText)],
+                )
+                Node { flex_grow: 1.0 }
+                [(Text("Button") ThemedText)],
                 (
                     :checkbox(CheckboxProps::default())
                     Checked::default()
@@ -222,7 +263,7 @@ fn demo_root() -> impl Scene {
                     SliderPrecision(2)
                 ),
             ],
-                        Node {
+            Node {
                 display: Display::Flex,
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Stretch,
@@ -277,14 +318,14 @@ fn demo_root() -> impl Scene {
                                 variant: ButtonVariant::Plain,
                                 ..default()
                             }) [
-                                (Text("\u{20AC}") ThemedText)
+                                :icon(icons::CHEVRON_DOWN)
                             ],
                             :flex_spacer,
                             :tool_button(ButtonProps{
                                 variant: ButtonVariant::Plain,
                                 ..default()
                             }) [
-                                (Text("\u{00D7}") ThemedText)
+                                :icon(icons::X)
                             ],
                         ],
                         (

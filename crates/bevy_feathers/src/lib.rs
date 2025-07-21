@@ -24,6 +24,8 @@ use bevy_ecs::query::With;
 use bevy_text::{TextColor, TextFont};
 use bevy_winit::cursor::CursorIcon;
 
+extern crate alloc;
+
 use crate::{
     controls::ControlsPlugin,
     cursor::{CursorIconPlugin, DefaultCursorIcon},
@@ -36,11 +38,13 @@ pub mod controls;
 pub mod cursor;
 pub mod dark_theme;
 pub mod font_styles;
-pub mod handle_or_path;
+mod icon;
 pub mod palette;
 pub mod rounded_corners;
 pub mod theme;
 pub mod tokens;
+
+pub use icon::icon;
 
 /// Plugin which installs observers and systems for feathers themes, cursors, and all controls.
 pub struct FeathersPlugin;
@@ -54,6 +58,10 @@ impl Plugin for FeathersPlugin {
         embedded_asset!(app, "assets/fonts/FiraSans-Regular.ttf");
         embedded_asset!(app, "assets/fonts/FiraSans-Italic.ttf");
         embedded_asset!(app, "assets/fonts/FiraMono-Medium.ttf");
+
+        embedded_asset!(app, "assets/icons/chevron-down.png");
+        embedded_asset!(app, "assets/icons/chevron-right.png");
+        embedded_asset!(app, "assets/icons/x.png");
 
         app.add_plugins((
             ControlsPlugin,

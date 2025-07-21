@@ -72,7 +72,7 @@ pub struct PopoverPlacement {
 
 /// Component which is inserted into a popover element to make it dynamically position relative to
 /// an parent element.
-#[derive(Component, PartialEq)]
+#[derive(Component, PartialEq, Default)]
 pub struct Popover {
     /// List of potential positions for the popover element relative to the parent.
     pub positions: Vec<PopoverPlacement>,

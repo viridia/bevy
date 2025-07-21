@@ -1,5 +1,5 @@
 use bevy_scene2::{bsn, Scene};
-use bevy_ui::Node;
+use bevy_ui::{Node, Val};
 
 /// An invisible UI node that takes up space, and which has a positive `flex_grow` setting.
 pub fn flex_spacer() -> impl Scene {

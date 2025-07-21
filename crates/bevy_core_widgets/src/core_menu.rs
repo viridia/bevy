@@ -12,6 +12,7 @@ use bevy_ecs::{
     query::{Has, With, Without},
     schedule::IntoScheduleConfigs,
     system::{Commands, In, Query, Res, ResMut},
+    template::GetTemplate,
 };
 use bevy_input::{
     keyboard::{KeyCode, KeyboardInput},
@@ -39,6 +40,8 @@ use crate::{Activate, Callback, Notify};
 pub enum MenuEvent {
     /// Indicates we want to open the menu, if it is not already open.
     Open,
+    /// Open the menu if it's closed, close it if it's open. Generally sent from a menu button.
+    Toggle,
     /// Close the menu and despawn it. Despawning may not happen immediately if there is a closing
     /// transition animation.
     Close,
@@ -82,7 +85,7 @@ pub struct CoreMenuPopup {
 }
 
 /// Component that defines a menu item.
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Clone, GetTemplate)]
 #[require(AccessibilityNode(accesskit::Node::new(Role::MenuItem)))]
 pub struct CoreMenuItem {
     /// Callback to invoke when the menu item is clicked, or when the `Enter` or `Space` key
