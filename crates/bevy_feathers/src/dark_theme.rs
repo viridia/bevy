@@ -140,6 +140,22 @@ pub fn create_dark_theme() -> ThemeProps {
                 tokens::SWITCH_SLIDE_DISABLED.into(),
                 palette::LIGHT_GRAY_2.with_alpha(0.3),
             ),
+            // Menus
+            (tokens::MENU_BG.into(), palette::GRAY_1),
+            (tokens::MENU_BORDER.into(), palette::WARM_GRAY_1),
+            (
+                tokens::MENUITEM_BG_HOVER.into(),
+                palette::GRAY_1.lighter(0.05),
+            ),
+            (
+                tokens::MENUITEM_BG_PRESSED.into(),
+                palette::GRAY_1.lighter(0.1),
+            ),
+            (tokens::MENUITEM_TEXT.into(), palette::WHITE),
+            (
+                tokens::MENUITEM_TEXT_DISABLED.into(),
+                palette::WHITE.with_alpha(0.5),
+            ),
             // Pane
             (tokens::PANE_HEADER_BG.into(), palette::GRAY_0),
             (tokens::PANE_HEADER_BORDER.into(), palette::WARM_GRAY_1),

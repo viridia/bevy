@@ -45,7 +45,7 @@ fn main() {
         ))
         .insert_resource(UiTheme(create_dark_theme()))
         // Only run the app when there is user input. This will significantly reduce CPU/GPU use.
-        .insert_resource(WinitSettings::desktop_app())
+        // .insert_resource(WinitSettings::desktop_app())
         .add_systems(Startup, setup)
         .run();
 }
@@ -123,7 +123,8 @@ fn demo_root() -> impl Scene {
                     ),
                     (
                         :menu(|parent| {
-                            let popup = parent.commands().spawn_scene(bsn!(
+                            let mut commands = parent.commands();
+                            let mut popup = commands.spawn_scene(bsn!(
                                 :menu_popup()
                                 [
                                     (
@@ -145,8 +146,11 @@ fn demo_root() -> impl Scene {
                                         ]
                                     )
                                 ]
-                            )).id();
-                            parent.add_child(popup);
+                            ));
+                            // TODO: Hack to work around scene spawning bug.
+                            popup.insert(Node::default());
+                            let popup_id = popup.id();
+                            parent.add_child(popup_id);
                         }) [
                             :menu_button(MenuButtonProps::default()) [
                                 (Text("Menu") ThemedText)

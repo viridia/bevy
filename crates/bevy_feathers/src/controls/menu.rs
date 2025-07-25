@@ -1,10 +1,7 @@
 use alloc::sync::Arc;
 
 use bevy_app::{Plugin, PreUpdate};
-use bevy_color::{
-    palettes::css::{GRAY, GREEN},
-    Alpha, Srgba,
-};
+use bevy_color::{Alpha, Srgba};
 use bevy_core_widgets::{
     popover::{Popover, PopoverAlign, PopoverPlacement, PopoverSide},
     Activate, CallbackTemplate, CoreMenuItem, CoreMenuPopup, MenuEvent,
@@ -38,7 +35,7 @@ use crate::{
     font_styles::InheritableFont,
     icon,
     rounded_corners::RoundedCorners,
-    theme::{ThemeBackgroundColor, ThemeFontColor},
+    theme::{ThemeBackgroundColor, ThemeBorderColor, ThemeFontColor},
     tokens,
 };
 use bevy_input_focus::tab_navigation::TabIndex;
@@ -99,7 +96,16 @@ pub fn menu<F: Fn(&mut EntityCommands) + 'static + Send + Sync>(spawn_popover: F
                         }
                     }
                 },
-                // MenuEvent::CloseAll => todo!(),
+                MenuEvent::CloseAll => {
+                    let Ok((_menu, children)) = q_menu.get(ev.target()) else {
+                        return;
+                    };
+                    for child in children.iter() {
+                        if q_popovers.contains(*child) {
+                            commands.entity(*child).despawn();
+                        }
+                    }
+                },
                 // MenuEvent::FocusRoot => todo!(),
                 event => {
                     info!("Menu Event: {:?}", event);
@@ -152,8 +158,9 @@ pub fn menu_popup() -> impl Scene {
         MenuPopup
         CoreMenuPopup
         template_value(Visibility::Hidden)
-        BorderColor::all(GREEN.into())
-        BackgroundColor(GRAY)
+        template_value(RoundedCorners::All.to_border_radius(4.0))
+        ThemeBackgroundColor(tokens::MENU_BG)
+        ThemeBorderColor(tokens::MENU_BORDER)
         BoxShadow::new(
             Srgba::BLACK.with_alpha(0.9).into(),
             Val::Px(0.0),
@@ -208,8 +215,8 @@ pub fn menu_item(props: MenuItemProps) -> impl Scene {
         // TODO: port CursonIcon to GetTemplate
         // CursorIcon::System(bevy_window::SystemCursorIcon::Pointer)
         TabIndex(0)
-        ThemeBackgroundColor(tokens::BUTTON_BG)
-        ThemeFontColor(tokens::BUTTON_TEXT)
+        ThemeBackgroundColor(tokens::MENU_BG) // Same as menu
+        ThemeFontColor(tokens::MENUITEM_TEXT)
         InheritableFont {
             font: fonts::REGULAR,
             font_size: 14.0,
@@ -217,8 +224,8 @@ pub fn menu_item(props: MenuItemProps) -> impl Scene {
     }
 }
 
-fn update_menu_button_styles(
-    q_buttons: Query<
+fn update_menuitem_styles(
+    q_menuitems: Query<
         (
             Entity,
             Has<InteractionDisabled>,
@@ -227,12 +234,15 @@ fn update_menu_button_styles(
             &ThemeBackgroundColor,
             &ThemeFontColor,
         ),
-        Or<(Changed<Hovered>, Added<Pressed>, Added<InteractionDisabled>)>,
+        (
+            With<MenuItem>,
+            Or<(Changed<Hovered>, Added<Pressed>, Added<InteractionDisabled>)>,
+        ),
     >,
     mut commands: Commands,
 ) {
-    for (button_ent, disabled, pressed, hovered, bg_color, font_color) in q_buttons.iter() {
-        set_menu_button_colors(
+    for (button_ent, disabled, pressed, hovered, bg_color, font_color) in q_menuitems.iter() {
+        set_menuitem_colors(
             button_ent,
             disabled,
             pressed,
@@ -244,15 +254,18 @@ fn update_menu_button_styles(
     }
 }
 
-fn update_menu_button_styles_remove(
-    q_buttons: Query<(
-        Entity,
-        Has<InteractionDisabled>,
-        Has<Pressed>,
-        &Hovered,
-        &ThemeBackgroundColor,
-        &ThemeFontColor,
-    )>,
+fn update_menuitem_styles_remove(
+    q_menuitems: Query<
+        (
+            Entity,
+            Has<InteractionDisabled>,
+            Has<Pressed>,
+            &Hovered,
+            &ThemeBackgroundColor,
+            &ThemeFontColor,
+        ),
+        With<MenuItem>,
+    >,
     mut removed_disabled: RemovedComponents<InteractionDisabled>,
     mut removed_pressed: RemovedComponents<Pressed>,
     mut commands: Commands,
@@ -262,9 +275,9 @@ fn update_menu_button_styles_remove(
         .chain(removed_pressed.read())
         .for_each(|ent| {
             if let Ok((button_ent, disabled, pressed, hovered, bg_color, font_color)) =
-                q_buttons.get(ent)
+                q_menuitems.get(ent)
             {
-                set_menu_button_colors(
+                set_menuitem_colors(
                     button_ent,
                     disabled,
                     pressed,
@@ -277,7 +290,7 @@ fn update_menu_button_styles_remove(
         });
 }
 
-fn set_menu_button_colors(
+fn set_menuitem_colors(
     button_ent: Entity,
     disabled: bool,
     pressed: bool,
@@ -286,16 +299,15 @@ fn set_menu_button_colors(
     font_color: &ThemeFontColor,
     commands: &mut Commands,
 ) {
-    let bg_token = match (disabled, pressed, hovered) {
-        (true, _, _) => tokens::BUTTON_BG_DISABLED,
-        (false, true, _) => tokens::BUTTON_BG_PRESSED,
-        (false, false, true) => tokens::BUTTON_BG_HOVER,
-        (false, false, false) => tokens::BUTTON_BG,
+    let bg_token = match (pressed, hovered) {
+        (true, _) => tokens::MENUITEM_BG_PRESSED,
+        (false, true) => tokens::MENUITEM_BG_HOVER,
+        (false, false) => tokens::MENU_BG,
     };
 
     let font_color_token = match disabled {
-        true => tokens::BUTTON_TEXT_DISABLED,
-        false => tokens::BUTTON_TEXT,
+        true => tokens::MENUITEM_TEXT_DISABLED,
+        false => tokens::MENUITEM_TEXT,
     };
 
     // Change background color
@@ -320,8 +332,7 @@ impl Plugin for MenuPlugin {
     fn build(&self, app: &mut bevy_app::App) {
         app.add_systems(
             PreUpdate,
-            (update_menu_button_styles, update_menu_button_styles_remove)
-                .in_set(PickingSystems::Last),
+            (update_menuitem_styles, update_menuitem_styles_remove).in_set(PickingSystems::Last),
         );
     }
 }

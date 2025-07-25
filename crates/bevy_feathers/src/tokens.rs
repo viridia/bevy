@@ -143,6 +143,21 @@ pub const SWITCH_SLIDE: &str = "feathers.switch.slide";
 /// Switch slide (disabled)
 pub const SWITCH_SLIDE_DISABLED: &str = "feathers.switch.slide.disabled";
 
+// Menus
+
+/// Menu background
+pub const MENU_BG: &str = "feathers.menu.bg";
+/// Menu border
+pub const MENU_BORDER: &str = "feathers.menu.border";
+/// Menu item hovered
+pub const MENUITEM_BG_HOVER: &str = "feathers.menuitem.bg.hover";
+/// Menu item pressed
+pub const MENUITEM_BG_PRESSED: &str = "feathers.menuitem.bg.pressed";
+/// Menu item text
+pub const MENUITEM_TEXT: &str = "feathers.menuitem.text";
+/// Menu item text (disabled)
+pub const MENUITEM_TEXT_DISABLED: &str = "feathers.menuitem.text.disabled";
+
 // Pane
 
 /// Pane header background
