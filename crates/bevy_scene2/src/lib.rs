@@ -26,6 +26,9 @@ use bevy_asset::{AssetApp, AssetPath, AssetServer, Handle};
 use bevy_ecs::{prelude::*, system::IntoObserverSystem, template::Template};
 use std::marker::PhantomData;
 
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SceneSet;
+
 #[derive(Default)]
 pub struct ScenePlugin;
 
@@ -33,7 +36,12 @@ impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<QueuedScenes>()
             .init_asset::<ScenePatch>()
-            .add_systems(Update, (resolve_scene_patches, spawn_queued).chain());
+            .add_systems(
+                Update,
+                (resolve_scene_patches, spawn_queued)
+                    .chain()
+                    .in_set(SceneSet),
+            );
     }
 }
 

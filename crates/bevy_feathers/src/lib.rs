@@ -18,9 +18,10 @@
 //! Please report issues, submit fixes and propose changes.
 //! Thanks for stress-testing; let's build something better together.
 
-use bevy_app::{HierarchyPropagatePlugin, Plugin, PostUpdate};
+use bevy_app::{HierarchyPropagatePlugin, Plugin, PostUpdate, PropagateSet, Update};
 use bevy_asset::embedded_asset;
-use bevy_ecs::query::With;
+use bevy_ecs::{query::With, schedule::IntoScheduleConfigs};
+use bevy_scene2::SceneSet;
 use bevy_text::{TextColor, TextFont};
 use bevy_winit::cursor::CursorIcon;
 
@@ -71,5 +72,7 @@ impl Plugin for FeathersPlugin {
             .add_observer(theme::on_changed_border)
             .add_observer(theme::on_changed_font_color)
             .add_observer(font_styles::on_changed_font);
+
+        app.configure_sets(Update, PropagateSet::<TextFont>::default().after(SceneSet));
     }
 }
