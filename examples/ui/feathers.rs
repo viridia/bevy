@@ -1,14 +1,16 @@
 //! This example shows off the various Bevy Feathers widgets.
 
 use bevy::{
+    color::palettes,
     core_widgets::{
         Activate, Callback, CoreRadio, CoreRadioGroup, CoreWidgetsPlugins, SliderPrecision,
-        SliderStep,
+        SliderStep, SliderValue, ValueChange,
     },
     feathers::{
         controls::{
-            button, checkbox, color_swatch, radio, slider, toggle_switch, ButtonProps,
-            ButtonVariant, CheckboxProps, SliderProps, ToggleSwitchProps,
+            button, checkbox, color_slider, color_swatch, radio, slider, toggle_switch,
+            ButtonProps, ButtonVariant, CheckboxProps, ColorChannel, ColorSlider, ColorSliderProps,
+            ColorSwatch, SliderBaseColor, SliderProps, ToggleSwitchProps,
         },
         dark_theme::create_dark_theme,
         rounded_corners::RoundedCorners,
@@ -79,40 +81,47 @@ fn demo_root(commands: &mut Commands) -> impl Bundle {
         },
     );
 
-    let change_red =
-        commands.register_system(|value: In<f32>, mut color: ResMut<DemoWidgetStates>| {
-            color.rgb_color.red = *value;
-        });
+    let change_red = commands.register_system(
+        |change: In<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
+            color.rgb_color.red = change.value;
+        },
+    );
 
-    let change_green =
-        commands.register_system(|value: In<f32>, mut color: ResMut<DemoWidgetStates>| {
-            color.rgb_color.green = *value;
-        });
+    let change_green = commands.register_system(
+        |change: In<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
+            color.rgb_color.green = change.value;
+        },
+    );
 
-    let change_blue =
-        commands.register_system(|value: In<f32>, mut color: ResMut<DemoWidgetStates>| {
-            color.rgb_color.blue = *value;
-        });
+    let change_blue = commands.register_system(
+        |change: In<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
+            color.rgb_color.blue = change.value;
+        },
+    );
 
-    let change_alpha =
-        commands.register_system(|value: In<f32>, mut color: ResMut<DemoWidgetStates>| {
-            color.rgb_color.alpha = *value;
-        });
+    let change_alpha = commands.register_system(
+        |change: In<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
+            color.rgb_color.alpha = change.value;
+        },
+    );
 
-    let change_hue =
-        commands.register_system(|value: In<f32>, mut color: ResMut<DemoWidgetStates>| {
-            color.hsl_color.hue = *value;
-        });
+    let change_hue = commands.register_system(
+        |change: In<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
+            color.hsl_color.hue = change.value;
+        },
+    );
 
-    let change_saturation =
-        commands.register_system(|value: In<f32>, mut color: ResMut<DemoWidgetStates>| {
-            color.hsl_color.saturation = *value;
-        });
+    let change_saturation = commands.register_system(
+        |change: In<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
+            color.hsl_color.saturation = change.value;
+        },
+    );
 
-    let change_lightness =
-        commands.register_system(|value: In<f32>, mut color: ResMut<DemoWidgetStates>| {
-            color.hsl_color.lightness = *value;
-        });
+    let change_lightness = commands.register_system(
+        |change: In<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
+            color.hsl_color.lightness = change.value;
+        },
+    );
 
     (
         Node {
@@ -329,7 +338,80 @@ fn demo_root(commands: &mut Commands) -> impl Bundle {
                     },
                     (SliderStep(10.), SliderPrecision(2)),
                 ),
-                color_swatch(()),
+                (
+                    Node {
+                        display: Display::Flex,
+                        flex_direction: FlexDirection::Row,
+                        justify_content: JustifyContent::SpaceBetween,
+                        ..default()
+                    },
+                    children![Text("Srgba".to_owned()), color_swatch(SwatchType::Rgb),]
+                ),
+                color_slider(
+                    ColorSliderProps {
+                        value: 0.5,
+                        on_change: Callback::System(change_red),
+                        channel: ColorChannel::Red
+                    },
+                    ()
+                ),
+                color_slider(
+                    ColorSliderProps {
+                        value: 0.5,
+                        on_change: Callback::System(change_green),
+                        channel: ColorChannel::Green
+                    },
+                    ()
+                ),
+                color_slider(
+                    ColorSliderProps {
+                        value: 0.5,
+                        on_change: Callback::System(change_blue),
+                        channel: ColorChannel::Blue
+                    },
+                    ()
+                ),
+                color_slider(
+                    ColorSliderProps {
+                        value: 0.5,
+                        on_change: Callback::System(change_alpha),
+                        channel: ColorChannel::Alpha
+                    },
+                    ()
+                ),
+                (
+                    Node {
+                        display: Display::Flex,
+                        flex_direction: FlexDirection::Row,
+                        justify_content: JustifyContent::SpaceBetween,
+                        ..default()
+                    },
+                    children![Text("Hsl".to_owned()), color_swatch(SwatchType::Hsl),]
+                ),
+                color_slider(
+                    ColorSliderProps {
+                        value: 0.5,
+                        on_change: Callback::System(change_hue),
+                        channel: ColorChannel::HslHue
+                    },
+                    ()
+                ),
+                color_slider(
+                    ColorSliderProps {
+                        value: 0.5,
+                        on_change: Callback::System(change_saturation),
+                        channel: ColorChannel::HslSaturation
+                    },
+                    ()
+                ),
+                color_slider(
+                    ColorSliderProps {
+                        value: 0.5,
+                        on_change: Callback::System(change_lightness),
+                        channel: ColorChannel::HslLightness
+                    },
+                    ()
+                )
             ]
         ),],
     )

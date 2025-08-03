@@ -4,7 +4,7 @@ use bevy_app::{Plugin, PreUpdate};
 use bevy_asset::Handle;
 use bevy_color::{Alpha, Color, Hsla};
 use bevy_core_widgets::{
-    Callback, CoreSlider, CoreSliderThumb, SliderRange, SliderValue, TrackClick,
+    Callback, CoreSlider, CoreSliderThumb, SliderRange, SliderValue, TrackClick, ValueChange,
 };
 use bevy_ecs::{
     bundle::Bundle,
@@ -147,7 +147,7 @@ pub struct ColorSliderProps {
     /// Slider current value
     pub value: f32,
     /// On-change handler
-    pub on_change: Callback<In<f32>>,
+    pub on_change: Callback<In<ValueChange<f32>>>,
     /// Which color component we're editing
     pub channel: ColorChannel,
 }
@@ -244,7 +244,7 @@ pub fn color_slider<B: Bundle>(props: ColorSliderProps, overrides: B) -> impl Bu
                                 ColorStop::new(Color::NONE, Val::Percent(50.)),
                                 ColorStop::new(Color::NONE, Val::Percent(100.)),
                             ],
-                            color_space: InterpolationColorSpace::Srgb,
+                            color_space: InterpolationColorSpace::Srgba,
                         })]),
                         ZIndex(1),
                         children![(
@@ -335,23 +335,23 @@ fn update_track_color(
                     linear_gradient.stops[2].color = end;
                     linear_gradient.color_space = match slider.channel {
                         ColorChannel::Red | ColorChannel::Green | ColorChannel::Blue => {
-                            InterpolationColorSpace::Srgb
+                            InterpolationColorSpace::Srgba
                         }
                         ColorChannel::HslHue
                         | ColorChannel::HslLightness
-                        | ColorChannel::HslSaturation => InterpolationColorSpace::Hsl,
+                        | ColorChannel::HslSaturation => InterpolationColorSpace::Hsla,
                         ColorChannel::Alpha => match base_color {
-                            Color::Srgba(_) => InterpolationColorSpace::Srgb,
-                            Color::LinearRgba(_) => InterpolationColorSpace::LinearRgb,
-                            Color::Oklaba(_) => InterpolationColorSpace::OkLab,
-                            Color::Oklcha(_) => InterpolationColorSpace::OkLchLong,
-                            Color::Hsla(_) | Color::Hsva(_) => InterpolationColorSpace::Hsl,
+                            Color::Srgba(_) => InterpolationColorSpace::Srgba,
+                            Color::LinearRgba(_) => InterpolationColorSpace::LinearRgba,
+                            Color::Oklaba(_) => InterpolationColorSpace::Oklaba,
+                            Color::Oklcha(_) => InterpolationColorSpace::OklchaLong,
+                            Color::Hsla(_) | Color::Hsva(_) => InterpolationColorSpace::Hsla,
                             _ => {
                                 warn_once!(
                                     "Unsupported color space for ColorSlider: {:?}",
                                     base_color
                                 );
-                                InterpolationColorSpace::Srgb
+                                InterpolationColorSpace::Srgba
                             }
                         },
                     };
