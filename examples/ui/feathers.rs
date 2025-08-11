@@ -15,7 +15,7 @@ use bevy::{
         dark_theme::create_dark_theme,
         rounded_corners::RoundedCorners,
         theme::{ThemeBackgroundColor, ThemedText, UiTheme},
-        tokens, FeathersPlugin, VisibleFocusAnchor,
+        tokens, FeathersPlugin, FocusIndicator,
     },
     input_focus::{
         tab_navigation::{TabGroup, TabIndex, TabNavigationPlugin},
@@ -291,7 +291,7 @@ fn demo_root(commands: &mut Commands) -> impl Bundle {
                         on_change: Callback::System(radio_exclusion),
                     },
                     TabIndex(0),
-                    VisibleFocusAnchor,
+                    FocusIndicator,
                     children![
                         radio(Checked, Spawn((Text::new("One"), ThemedText))),
                         radio((), Spawn((Text::new("Two"), ThemedText))),

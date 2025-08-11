@@ -30,7 +30,7 @@ use crate::{
     cursor::{CursorIconPlugin, DefaultCursor, EntityCursor},
     theme::{ThemedText, UiTheme},
 };
-pub use focus::{FocusOutlinesPlugin, VisibleFocusAnchor};
+pub use focus::{FocusIndicator, FocusOutlinesPlugin};
 
 mod alpha_pattern;
 pub mod constants;
