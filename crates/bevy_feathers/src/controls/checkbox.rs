@@ -6,22 +6,24 @@ use bevy_ecs::{
     hierarchy::Children,
     lifecycle::RemovedComponents,
     query::{Added, Changed, Has, Or, With},
+    reflect::ReflectComponent,
     schedule::IntoScheduleConfigs,
     system::{Commands, In, Query},
 };
 use bevy_input_focus::tab_navigation::TabIndex;
 use bevy_math::Rot2;
 use bevy_picking::{hover::Hovered, PickingSystems};
+use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_render::view::Visibility;
 use bevy_scene2::prelude::*;
 use bevy_ui::{
     AlignItems, BorderRadius, Checked, Display, FlexDirection, InteractionDisabled, JustifyContent,
     Node, PositionType, UiRect, UiTransform, Val,
 };
-use bevy_winit::cursor::CursorIcon;
 
 use crate::{
     constants::{fonts, size},
+    cursor::EntityCursor,
     font_styles::InheritableFont,
     theme::{ThemeBackgroundColor, ThemeBorderColor, ThemeFontColor},
     tokens,
@@ -35,15 +37,18 @@ pub struct CheckboxProps {
 }
 
 /// Marker for the checkbox frame (contains both checkbox and label)
-#[derive(Component, Default, Clone)]
+#[derive(Component, Default, Clone, Reflect)]
+#[reflect(Component, Clone, Default)]
 struct CheckboxFrame;
 
 /// Marker for the checkbox outline
-#[derive(Component, Default, Clone)]
+#[derive(Component, Default, Clone, Reflect)]
+#[reflect(Component, Clone, Default)]
 struct CheckboxOutline;
 
 /// Marker for the checkbox check mark
-#[derive(Component, Default, Clone)]
+#[derive(Component, Default, Clone, Reflect)]
+#[reflect(Component, Clone, Default)]
 struct CheckboxMark;
 
 /// Checkbox scene function.
@@ -64,8 +69,7 @@ pub fn checkbox(props: CheckboxProps) -> impl Scene {
         }
         CheckboxFrame
         Hovered
-        // TODO: port CursorIcon to GetTemplate
-        // CursorIcon::System(bevy_window::SystemCursorIcon::Pointer)
+        EntityCursor::System(bevy_window::SystemCursorIcon::Pointer)
         TabIndex(0)
         ThemeFontColor(tokens::CHECKBOX_TEXT)
         InheritableFont {

@@ -11,21 +11,23 @@ use bevy_ecs::{
     hierarchy::Children,
     lifecycle::RemovedComponents,
     query::{Added, Changed, Has, Or, Spawned, With},
+    reflect::ReflectComponent,
     schedule::IntoScheduleConfigs,
     system::{In, Query, Res},
 };
 use bevy_input_focus::tab_navigation::TabIndex;
 use bevy_picking::PickingSystems;
+use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_scene2::{prelude::*, template_value};
 use bevy_ui::{
     widget::Text, AlignItems, BackgroundGradient, ColorStop, Display, FlexDirection, Gradient,
     InteractionDisabled, InterpolationColorSpace, JustifyContent, LinearGradient, Node, UiRect,
     Val,
 };
-use bevy_winit::cursor::CursorIcon;
 
 use crate::{
     constants::{fonts, size},
+    cursor::EntityCursor,
     font_styles::InheritableFont,
     rounded_corners::RoundedCorners,
     theme::{ThemeFontColor, ThemedText, UiTheme},
@@ -55,11 +57,13 @@ impl Default for SliderProps {
     }
 }
 
-#[derive(Component, Default, Clone)]
+#[derive(Component, Default, Clone, Reflect)]
+#[reflect(Component, Clone, Default)]
 struct SliderStyle;
 
 /// Marker for the text
-#[derive(Component, Default, Clone)]
+#[derive(Component, Default, Clone, Reflect)]
+#[reflect(Component, Clone, Default)]
 struct SliderValueText;
 
 /// Slider scene function.
@@ -83,8 +87,7 @@ pub fn slider(props: SliderProps) -> impl Scene {
         SliderStyle
         SliderValue({props.value})
         SliderRange::new(props.min, props.max)
-        // TODO: port CursorIcon to GetTemplate
-        // CursorIcon::System(bevy_window::SystemCursorIcon::EwResize)
+        EntityCursor::System(bevy_window::SystemCursorIcon::EwResize)
         TabIndex(0)
         template_value(RoundedCorners::All.to_border_radius(6.0))
         // Use a gradient to draw the moving bar
@@ -96,7 +99,7 @@ pub fn slider(props: SliderProps) -> impl Scene {
                 ColorStop::new(Color::NONE, Val::Percent(50.)),
                 ColorStop::new(Color::NONE, Val::Percent(100.)),
             ],
-            color_space: InterpolationColorSpace::Srgb,
+            color_space: InterpolationColorSpace::Srgba,
         })]})
         [(
             // Text container

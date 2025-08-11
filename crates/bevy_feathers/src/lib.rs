@@ -18,20 +18,22 @@
 //! Please report issues, submit fixes and propose changes.
 //! Thanks for stress-testing; let's build something better together.
 
-use bevy_app::{HierarchyPropagatePlugin, Plugin, PostUpdate};
+use bevy_app::{HierarchyPropagatePlugin, Plugin, PostUpdate, Update};
 use bevy_asset::embedded_asset;
 use bevy_ecs::query::With;
 use bevy_text::{TextColor, TextFont};
-use bevy_winit::cursor::CursorIcon;
+use bevy_ui_render::UiMaterialPlugin;
 
 extern crate alloc;
 
 use crate::{
+    alpha_pattern::AlphaPatternMaterial,
     controls::ControlsPlugin,
-    cursor::{CursorIconPlugin, DefaultCursorIcon},
+    cursor::{CursorIconPlugin, DefaultCursor, EntityCursor},
     theme::{ThemedText, UiTheme},
 };
 
+mod alpha_pattern;
 pub mod constants;
 pub mod containers;
 pub mod controls;
@@ -53,6 +55,7 @@ impl Plugin for FeathersPlugin {
     fn build(&self, app: &mut bevy_app::App) {
         app.init_resource::<UiTheme>();
 
+        // Embedded font
         embedded_asset!(app, "assets/fonts/FiraSans-Bold.ttf");
         embedded_asset!(app, "assets/fonts/FiraSans-BoldItalic.ttf");
         embedded_asset!(app, "assets/fonts/FiraSans-Regular.ttf");
@@ -62,15 +65,18 @@ impl Plugin for FeathersPlugin {
         embedded_asset!(app, "assets/icons/chevron-down.png");
         embedded_asset!(app, "assets/icons/chevron-right.png");
         embedded_asset!(app, "assets/icons/x.png");
+        // Embedded shader
+        embedded_asset!(app, "assets/shaders/alpha_pattern.wgsl");
 
         app.add_plugins((
             ControlsPlugin,
             CursorIconPlugin,
-            HierarchyPropagatePlugin::<TextColor, With<ThemedText>>::default(),
-            HierarchyPropagatePlugin::<TextFont, With<ThemedText>>::default(),
+            HierarchyPropagatePlugin::<TextColor, With<ThemedText>>::new(Update),
+            HierarchyPropagatePlugin::<TextFont, With<ThemedText>>::new(Update),
+            UiMaterialPlugin::<AlphaPatternMaterial>::default(),
         ));
 
-        app.insert_resource(DefaultCursorIcon(CursorIcon::System(
+        app.insert_resource(DefaultCursor(EntityCursor::System(
             bevy_window::SystemCursorIcon::Default,
         )));
 

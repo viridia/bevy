@@ -6,7 +6,7 @@ use bevy_app::{App, Plugin, Update};
 use bevy_ecs::{
     component::Component,
     entity::Entity,
-    event::{EntityEvent, Event},
+    event::EntityEvent,
     hierarchy::ChildOf,
     observer::On,
     query::{Has, With, Without},
@@ -35,7 +35,7 @@ use crate::{Activate, Callback, Notify};
 /// This means that depending on direction, focus movement may move to the next menu item, or
 /// the next menu. This also means that different events will often be handled at different
 /// levels of the hierarchy - some being handled by the popup, and some by the popup's owner.
-#[derive(Event, EntityEvent, Clone, Debug)]
+#[derive(EntityEvent, Clone, Debug)]
 #[entity_event(traversal = &'static ChildOf, auto_propagate)]
 pub enum MenuEvent {
     /// Indicates we want to open the menu, if it is not already open.

@@ -1,24 +1,27 @@
 use accesskit::Role;
 use bevy_a11y::AccessibilityNode;
 use bevy_app::{Plugin, PreUpdate};
-use bevy_core_widgets::{Callback, CallbackTemplate, CoreCheckbox, ValueChange};
+use bevy_core_widgets::{CallbackTemplate, CoreCheckbox, ValueChange};
 use bevy_ecs::{
     component::Component,
     entity::Entity,
     hierarchy::Children,
     lifecycle::RemovedComponents,
     query::{Added, Changed, Has, Or, With},
+    reflect::ReflectComponent,
     schedule::IntoScheduleConfigs,
     system::{Commands, In, Query},
     world::Mut,
 };
 use bevy_input_focus::tab_navigation::TabIndex;
 use bevy_picking::{hover::Hovered, PickingSystems};
+use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_scene2::prelude::*;
 use bevy_ui::{BorderRadius, Checked, InteractionDisabled, Node, PositionType, UiRect, Val};
 
 use crate::{
     constants::size,
+    cursor::EntityCursor,
     theme::{ThemeBackgroundColor, ThemeBorderColor},
     tokens,
 };
@@ -31,11 +34,13 @@ pub struct ToggleSwitchProps {
 }
 
 /// Marker for the toggle switch outline
-#[derive(Component, Default, Clone)]
+#[derive(Component, Default, Clone, Reflect)]
+#[reflect(Component, Clone, Default)]
 struct ToggleSwitchOutline;
 
 /// Marker for the toggle switch slide
-#[derive(Component, Default, Clone)]
+#[derive(Component, Default, Clone, Reflect)]
+#[reflect(Component, Clone, Default)]
 struct ToggleSwitchSlide;
 
 /// Toggle switch scene function.
@@ -58,8 +63,7 @@ pub fn toggle_switch(props: ToggleSwitchProps) -> impl Scene {
         ThemeBorderColor(tokens::SWITCH_BORDER)
         AccessibilityNode(accesskit::Node::new(Role::Switch))
         Hovered
-        // TODO: port CursorIcon to GetTemplate
-        // CursorIcon::System(bevy_window::SystemCursorIcon::Pointer)
+        EntityCursor::System(bevy_window::SystemCursorIcon::Pointer)
         TabIndex(0)
         [(
             Node {

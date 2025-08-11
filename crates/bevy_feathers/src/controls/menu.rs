@@ -9,6 +9,7 @@ use bevy_core_widgets::{
 use bevy_ecs::{
     component::Component,
     entity::Entity,
+    event::EventWriter,
     hierarchy::Children,
     lifecycle::RemovedComponents,
     observer::On,
@@ -25,9 +26,10 @@ use bevy_picking::{
 use bevy_render::view::Visibility;
 use bevy_scene2::{prelude::*, template_value};
 use bevy_ui::{
-    AlignItems, BackgroundColor, BorderColor, BoxShadow, Display, FlexDirection, GlobalZIndex,
-    InteractionDisabled, JustifyContent, Node, OverrideClip, PositionType, Pressed, UiRect, Val,
+    AlignItems, BoxShadow, Display, FlexDirection, GlobalZIndex, InteractionDisabled,
+    JustifyContent, Node, OverrideClip, PositionType, Pressed, UiRect, Val,
 };
+use bevy_window::RequestRedraw;
 
 use crate::{
     constants::{fonts, icons, size},
@@ -39,7 +41,6 @@ use crate::{
     tokens,
 };
 use bevy_input_focus::tab_navigation::TabIndex;
-use bevy_winit::cursor::CursorIcon;
 
 /// Parameters for the menu button template, passed to [`menu_button`] function.
 #[derive(Default)]
@@ -74,6 +75,7 @@ pub fn menu<F: Fn(&mut EntityCommands) + 'static + Send + Sync>(spawn_popover: F
             ev: On<MenuEvent>,
             q_menu: Query<(&Menu, &Children)>,
             q_popovers: Query<Entity, With<MenuPopup>>,
+            mut redraw_events: EventWriter<RequestRedraw>,
             mut commands: Commands| {
             match ev.event() {
                 // MenuEvent::Open => todo!(),
@@ -91,8 +93,10 @@ pub fn menu<F: Fn(&mut EntityCommands) + 'static + Send + Sync>(spawn_popover: F
                     }
                     // Spawn the menu if not already open.
                     if !was_open {
-                        if let Some(arc) = menu.0.as_ref() {
-                            (*arc)(&mut commands.entity(ev.target()));
+                        // info!("Opening");
+                        if let Some(factory) = menu.0.as_ref() {
+                            (*factory)(&mut commands.entity(ev.target()));
+                            redraw_events.write(RequestRedraw);
                         }
                     }
                 },
@@ -109,7 +113,6 @@ pub fn menu<F: Fn(&mut EntityCommands) + 'static + Send + Sync>(spawn_popover: F
                 // MenuEvent::FocusRoot => todo!(),
                 event => {
                     info!("Menu Event: {:?}", event);
-
                 }
             }
         })
