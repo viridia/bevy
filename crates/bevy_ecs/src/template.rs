@@ -4,7 +4,7 @@ pub use bevy_ecs_macros::GetTemplate;
 
 use crate::{
     bundle::Bundle,
-    entity::{Entity, EntityPath},
+    entity::{Entities, Entity, EntityPath},
     error::{BevyError, Result},
     resource::Resource,
     world::{EntityWorldMut, World},
@@ -127,7 +127,7 @@ impl EntityScopes {
 pub struct ScopedEntities(Vec<Option<Entity>>);
 
 impl ScopedEntities {
-    /// Creates a new [`ScopedEntities`] with the given `size`, intialized to [`None`] (no [`Entity`] assigned).  
+    /// Creates a new [`ScopedEntities`] with the given `size`, intialized to [`None`] (no [`Entity`] assigned).
     pub fn new(size: usize) -> Self {
         Self(vec![None; size])
     }
