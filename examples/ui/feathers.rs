@@ -29,7 +29,6 @@ use bevy::{
         SliderPrecision, SliderStep, SliderValue, ValueChange,
     },
 };
-use bevy_scene2::SpawnRelatedScenes as _;
 
 /// A struct to hold the state of various widgets shown in the demo.
 #[derive(Resource)]

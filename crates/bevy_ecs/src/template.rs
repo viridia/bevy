@@ -4,7 +4,7 @@ pub use bevy_ecs_macros::GetTemplate;
 
 use crate::{
     bundle::Bundle,
-    entity::{Entities, Entity, EntityPath},
+    entity::{Entity, EntityPath},
     error::{BevyError, Result},
     resource::Resource,
     world::{EntityWorldMut, World},
