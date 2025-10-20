@@ -208,25 +208,30 @@ pub fn menu_popup() -> impl Scene {
 /// Menu item scene function
 pub fn menu_item() -> impl Scene {
     bsn! {
-        Node {
-            height: size::ROW_HEIGHT,
-            min_width: size::ROW_HEIGHT,
-            justify_content: JustifyContent::Start,
-            align_items: AlignItems::Center,
-            padding: UiRect::axes(Val::Px(8.0), Val::Px(0.)),
+            Node {
+                height: size::ROW_HEIGHT,
+                min_width: size::ROW_HEIGHT,
+                justify_content: JustifyContent::Start,
+                align_items: AlignItems::Center,
+                padding: UiRect::axes(Val::Px(8.0), Val::Px(0.)),
+            }
+            MenuItemStyle
+            MenuItem
+            Hovered
+    <<<<<<< HEAD
+            EntityCursor::System(bevy_window::SystemCursorIcon::Pointer)
+    =======
+            // TODO: port CursonIcon to GetTemplate
+            // CursorIcon::System(bevy_window::SystemCursorIcon::Pointer)
+    >>>>>>> a9b985bcb (Porting feathers menu to latest bsn branch. (#47))
+            TabIndex(0)
+            ThemeBackgroundColor(tokens::MENU_BG) // Same as menu
+            ThemeFontColor(tokens::MENUITEM_TEXT)
+            InheritableFont {
+                font: fonts::REGULAR,
+                font_size: 14.0,
+            }
         }
-        MenuItemStyle
-        MenuItem
-        Hovered
-        EntityCursor::System(bevy_window::SystemCursorIcon::Pointer)
-        TabIndex(0)
-        ThemeBackgroundColor(tokens::MENU_BG) // Same as menu
-        ThemeFontColor(tokens::MENUITEM_TEXT)
-        InheritableFont {
-            font: fonts::REGULAR,
-            font_size: 14.0,
-        }
-    }
 }
 
 fn update_menuitem_styles(
