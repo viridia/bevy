@@ -186,7 +186,7 @@ pub fn menu_popup() -> impl Scene {
                 window_margin: 10.0,
             }
         )
-        template_value(OverrideClip)
+        OverrideClip
     }
 }
 
