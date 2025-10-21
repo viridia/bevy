@@ -15,7 +15,7 @@ use bevy_ecs::{
 };
 use bevy_log::info;
 use bevy_picking::{
-    events::{Click, Pointer, Press},
+    events::{Pointer, Press},
     hover::Hovered,
     PickingSystems,
 };
@@ -100,7 +100,6 @@ fn on_menu_event(
             }
             // Spawn the menu if not already open.
             if !was_open {
-                info!("Opening, !was_open");
                 if let Some(factory) = menu.0.as_ref() {
                     (*factory)(commands.entity(ev.source));
                     // redraw_events.write(RequestRedraw);
@@ -111,7 +110,6 @@ fn on_menu_event(
             let Ok((_menu, children)) = q_menu.get(ev.source) else {
                 return;
             };
-            info!("CloseAll event");
             commands.entity(ev.source).insert(MenuChildClosed);
             for child in children.iter() {
                 if q_popovers.contains(*child) {

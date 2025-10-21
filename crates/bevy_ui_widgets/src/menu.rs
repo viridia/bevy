@@ -165,7 +165,6 @@ fn menu_on_lose_focus(
         };
 
         if !contains_focus {
-            info!("Menu lost focus");
             commands.entity(menu).insert(MenuLostFocus);
             commands.trigger(MenuEvent {
                 source: menu,
