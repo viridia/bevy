@@ -15,7 +15,7 @@ use bevy_ecs::{
 };
 use bevy_log::info;
 use bevy_picking::{
-    events::{Click, Pointer},
+    events::{Click, Pointer, Press},
     hover::Hovered,
     PickingSystems,
 };
@@ -32,6 +32,7 @@ use bevy_ui_widgets::{
 use crate::{
     constants::{fonts, icons, size},
     controls::{button, ButtonProps, ButtonVariant},
+    cursor::EntityCursor,
     font_styles::InheritableFont,
     icon,
     rounded_corners::RoundedCorners,
@@ -55,9 +56,13 @@ struct MenuItemStyle;
 #[derive(Component, Default, Clone)]
 struct MenuPopupStyle;
 
-/// Marker for menu wrapper
+/// Component that contains the popup content generator.
 #[derive(Component, Clone, Default)]
 struct Menu(Option<Arc<dyn Fn(EntityCommands) + 'static + Send + Sync>>);
+
+/// Stateful marker to let us know that the click event caused our menu to close; don't re-open it.
+#[derive(Component, Default, Clone)]
+struct MenuChildClosed;
 
 /// Menu scene function. This wraps the menu button and provides an anchor for the popopver.
 pub fn menu<F: Fn(EntityCommands) + 'static + Send + Sync>(spawn_popover: F) -> impl Scene {
@@ -69,51 +74,55 @@ pub fn menu<F: Fn(EntityCommands) + 'static + Send + Sync>(spawn_popover: F) -> 
             align_items: AlignItems::Stretch,
         }
         template_value(menu)
-        on(|
-            ev: On<MenuEvent>,
-            q_menu: Query<(&Menu, &Children)>,
-            q_popovers: Query<Entity, With<MenuPopupStyle>>,
-            // mut redraw_events: MessageWriter<RequestRedraw>,
-            mut commands: Commands| {
-            match ev.event().action {
-                // MenuEvent::Open => todo!(),
-                // MenuEvent::Close => todo!(),
-                MenuAction::Toggle => {
-                    let mut was_open = false;
-                    let Ok((menu, children)) = q_menu.get(ev.source) else {
-                        return;
-                    };
-                    for child in children.iter() {
-                        if q_popovers.contains(*child) {
-                            commands.entity(*child).despawn();
-                            was_open = true;
-                        }
-                    }
-                    // Spawn the menu if not already open.
-                    if !was_open {
-                        info!("Opening, !was_open");
-                        if let Some(factory) = menu.0.as_ref() {
-                            (*factory)(commands.entity(ev.source));
-                            // redraw_events.write(RequestRedraw);
-                        }
-                    }
-                },
-                MenuAction::CloseAll => {
-                    let Ok((_menu, children)) = q_menu.get(ev.source) else {
-                        return;
-                    };
-                    for child in children.iter() {
-                        if q_popovers.contains(*child) {
-                            commands.entity(*child).despawn();
-                        }
-                    }
-                },
-                // MenuEvent::FocusRoot => todo!(),
-                event => {
-                    info!("Menu Event: {:?}", event);
+        on(on_menu_event)
+    }
+}
+
+fn on_menu_event(
+    ev: On<MenuEvent>,
+    q_menu: Query<(&Menu, &Children)>,
+    q_popovers: Query<Entity, With<MenuPopupStyle>>,
+    mut commands: Commands,
+) {
+    match ev.event().action {
+        // MenuEvent::Open => todo!(),
+        // MenuEvent::Close => todo!(),
+        MenuAction::Toggle => {
+            let mut was_open = false;
+            let Ok((menu, children)) = q_menu.get(ev.source) else {
+                return;
+            };
+            for child in children.iter() {
+                if q_popovers.contains(*child) {
+                    commands.entity(*child).despawn();
+                    was_open = true;
                 }
             }
-        })
+            // Spawn the menu if not already open.
+            if !was_open {
+                info!("Opening, !was_open");
+                if let Some(factory) = menu.0.as_ref() {
+                    (*factory)(commands.entity(ev.source));
+                    // redraw_events.write(RequestRedraw);
+                }
+            }
+        }
+        MenuAction::CloseAll => {
+            let Ok((_menu, children)) = q_menu.get(ev.source) else {
+                return;
+            };
+            info!("CloseAll event");
+            commands.entity(ev.source).insert(MenuChildClosed);
+            for child in children.iter() {
+                if q_popovers.contains(*child) {
+                    commands.entity(*child).despawn();
+                }
+            }
+        }
+        // MenuEvent::FocusRoot => todo!(),
+        event => {
+            info!("Menu Event: {:?}", event);
+        }
     }
 }
 
@@ -128,12 +137,11 @@ pub fn menu_button(props: MenuButtonProps) -> impl Scene {
             corners: props.corners,
         })
         Node {
-            // TODO: HACK to deal with lack of intercepted children
+            // TODO: HACK to deal with lack of intercepted children.
+            // We want to put the chevron after the label, but BSN doesn't allow this yet.
             flex_direction: FlexDirection::RowReverse,
         }
-        on(|ev: On<Pointer<Click>>, mut commands: Commands| {
-            commands.trigger(MenuEvent { source: ev.entity, action: MenuAction::Toggle });
-        })
+        on(on_menu_button_press)
         [
             :icon(icons::CHEVRON_DOWN),
             Node {
@@ -141,6 +149,15 @@ pub fn menu_button(props: MenuButtonProps) -> impl Scene {
             }
         ]
     }
+}
+
+fn on_menu_button_press(ev: On<Pointer<Press>>, mut commands: Commands) {
+    // Note that by using `press` rather than `click`, we can proces the action before the
+    // menu closes from focus loss.
+    commands.trigger(MenuEvent {
+        source: ev.entity,
+        action: MenuAction::Toggle,
+    });
 }
 
 /// Menu Popup scene function
@@ -203,8 +220,7 @@ pub fn menu_item() -> impl Scene {
         MenuItemStyle
         MenuItem
         Hovered
-        // TODO: port CursonIcon to GetTemplate
-        // CursorIcon::System(bevy_window::SystemCursorIcon::Pointer)
+        EntityCursor::System(bevy_window::SystemCursorIcon::Pointer)
         TabIndex(0)
         ThemeBackgroundColor(tokens::MENU_BG) // Same as menu
         ThemeFontColor(tokens::MENUITEM_TEXT)

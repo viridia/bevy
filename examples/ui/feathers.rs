@@ -131,7 +131,7 @@ fn demo_root() -> impl Scene {
                                         (
                                             :menu_item()
                                             on(|_: On<Activate>| {
-                                                info!("Menu button clicked!");
+                                                info!("Menu item clicked!");
                                             })
                                             [
                                                 (Text("MenuItem") ThemedText)
@@ -140,7 +140,7 @@ fn demo_root() -> impl Scene {
                                         (
                                             :menu_item()
                                             on(|_: On<Activate>| {
-                                                info!("Menu button clicked!");
+                                                info!("Menu item clicked!");
                                             })
                                             [
                                                 (Text("MenuItem") ThemedText)

@@ -1,4 +1,6 @@
-//! Core widget components for menus and menu buttons.
+//! Core widget components for popup menus. This module is only concerned with the actual
+//! dropdown part, not the menu button widget, although it does define a set of events for
+//! communicating open and close events from the menu to the button.
 
 use accesskit::Role;
 use bevy_a11y::AccessibilityNode;
@@ -22,7 +24,7 @@ use bevy_input_focus::{
     tab_navigation::{NavAction, TabGroup, TabNavigation},
     FocusedInput, InputFocus,
 };
-use bevy_log::warn;
+use bevy_log::{info, warn};
 use bevy_picking::events::{Cancel, Click, DragEnd, Pointer, Press, Release};
 use bevy_ui::{InteractionDisabled, Pressed};
 
@@ -77,13 +79,19 @@ pub enum MenuLayout {
 
 /// Component that defines a popup menu container.
 ///
-/// A popup menu *must* contain at least one focusable entity. The first such entity will acquire
-/// focus when the popup is spawned; arrow keys can be used to navigate between menu items. If no
-/// descendant of the menu has focus, the menu will automatically close. This rule has several
-/// consequences:
+/// Menus are automatically dismissed when the user clicks outside the menu bounds. Unlike a modal
+/// dialog, where the click event is intercepted, we don't want to actually prevent the click event
+/// from triggering its normal action. The easiest way to detect this kind of click is to look for
+/// keyboard focus loss. When a menu is opened, one of its children will gain focus, and the menu
+/// remains open so long as at least one descendant is focused. Arrow keys can be used to navigate
+/// between menu items.
 ///
-/// * Clicking on another widget or empty space outside the menu will cause the menu to close.
-/// * Two menus cannot be displayed at the same time unless one is an ancestor of the other.
+/// This means that popup menu *must* contain at least one focusable entity. It also means that two
+/// menus cannot be displayed at the same time unless one is an ancestor of the other.
+///
+/// Some care needs to be taken in implementing a menu button: we normally want menu buttons to
+/// toggle the open state of the menu; but clicking on the button will cause focus loss which means
+/// that the menu will always be closed by the time the click event is processed.
 #[derive(Component, Debug, Default, Clone)]
 #[require(
     AccessibilityNode(accesskit::Node::new(Role::MenuListPopup)),
@@ -104,9 +112,9 @@ pub struct MenuItem;
 #[derive(Component, Debug, Default)]
 struct MenuAcquireFocus;
 
-/// Component that indicates that the menu is closing.
+/// Component that indicates that the menu lost focus and is in the process of closing.
 #[derive(Component, Debug, Default)]
-struct MenuClosing;
+struct MenuLostFocus;
 
 fn menu_acquire_focus(
     q_menus: Query<Entity, (With<MenuPopup>, With<MenuAcquireFocus>)>,
@@ -138,7 +146,7 @@ fn menu_on_lose_focus(
         (
             With<MenuPopup>,
             Without<MenuAcquireFocus>,
-            Without<MenuClosing>,
+            Without<MenuLostFocus>,
         ),
     >,
     q_parent: Query<&ChildOf>,
@@ -148,7 +156,7 @@ fn menu_on_lose_focus(
     // Close any menu which doesn't contain the focus entity.
     for menu in q_menus.iter() {
         // TODO: Change this logic when we support submenus. Don't want to send multiple close
-        // events. Perhaps what we can do is add `CoreMenuClosing` to the whole stack.
+        // events. Perhaps what we can do is add `MenuLostFocus` to the whole stack.
         let contains_focus = match focus.0 {
             Some(focus_ent) => {
                 focus_ent == menu || q_parent.iter_ancestors(focus_ent).any(|ent| ent == menu)
@@ -157,7 +165,8 @@ fn menu_on_lose_focus(
         };
 
         if !contains_focus {
-            commands.entity(menu).insert(MenuClosing);
+            info!("Menu lost focus");
+            commands.entity(menu).insert(MenuLostFocus);
             commands.trigger(MenuEvent {
                 source: menu,
                 action: MenuAction::CloseAll,
@@ -177,23 +186,22 @@ fn menu_on_key_event(
     if let Ok(disabled) = q_item.get(ev.focused_entity) {
         if !disabled {
             let event = &ev.event().input;
+            let entity = ev.event().focused_entity;
             if !event.repeat && event.state == ButtonState::Pressed {
                 match event.key_code {
                     // Activate the item and close the popup
                     KeyCode::Enter | KeyCode::Space => {
                         ev.propagate(false);
-                        // Trigger the menu action
-                        commands.trigger(Activate {
-                            entity: ev.event().focused_entity,
-                        });
+                        // Trigger the action for this menu item.
+                        commands.trigger(Activate { entity });
                         // Set the focus to the menu button.
                         commands.trigger(MenuEvent {
-                            source: ev.event().focused_entity,
+                            source: entity,
                             action: MenuAction::FocusRoot,
                         });
                         // Close the stack
                         commands.trigger(MenuEvent {
-                            source: ev.event().focused_entity,
+                            source: entity,
                             action: MenuAction::CloseAll,
                         });
                     }
