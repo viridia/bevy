@@ -3,12 +3,19 @@
 use bevy::{
     color::palettes,
     feathers::{
+        constants::icons,
+        containers::{
+            flex_spacer, pane, pane_body, pane_header, pane_header_divider, subpane, subpane_body,
+            subpane_header,
+        },
         controls::{
             button, checkbox, color_slider, color_swatch, menu, menu_button, menu_item, menu_popup,
-            radio, slider, toggle_switch, ButtonProps, ButtonVariant, ColorChannel, ColorSlider,
-            ColorSliderProps, ColorSwatch, MenuButtonProps, SliderBaseColor, SliderProps,
+            radio, slider, toggle_switch, tool_button, ButtonProps, ButtonVariant, ColorChannel,
+            ColorSlider, ColorSliderProps, ColorSwatch, MenuButtonProps, SliderBaseColor,
+            SliderProps,
         },
         dark_theme::create_dark_theme,
+        icon,
         rounded_corners::RoundedCorners,
         theme::{ThemeBackgroundColor, ThemedText, UiTheme},
         tokens, FeathersPlugins,
@@ -61,342 +68,419 @@ fn setup(mut commands: Commands) {
 
 fn demo_root() -> impl Scene {
     bsn! {
-        Node {
-            width: percent(100),
-            height: percent(100),
-            align_items: AlignItems::Start,
-            justify_content: JustifyContent::Start,
-            display: Display::Flex,
-            flex_direction: FlexDirection::Column,
-            row_gap: px(10),
-        }
-        TabGroup
-        ThemeBackgroundColor(tokens::WINDOW_BG)
-        [(
+            Node {
+                width: percent(100),
+                height: percent(100),
+                align_items: AlignItems::Start,
+                justify_content: JustifyContent::Start,
+                display: Display::Flex,
+                flex_direction: FlexDirection::Row,
+                row_gap: px(10),
+            }
+            TabGroup
+            ThemeBackgroundColor(tokens::WINDOW_BG)
+            [(
+                Node {
+                    display: Display::Flex,
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Stretch,
+                    justify_content: JustifyContent::Start,
+                    padding: UiRect::all(px(8)),
+                    row_gap: px(8),
+                    width: percent(30),
+                    min_width: px(200),
+                }
+                [
+                    (
+                        Node {
+                            display: Display::Flex,
+                            flex_direction: FlexDirection::Row,
+                            align_items: AlignItems::Center,
+                            justify_content: JustifyContent::Start,
+                            column_gap: px(8),
+                        }
+                        [
+                            (
+                                button(ButtonProps::default())
+                                on(|_: On<Activate>| {
+                                    info!("Normal button clicked!");
+                                })
+                                [ (Text::new("Normal") ThemedText) ]
+                            ),
+                            (
+                                button(
+                                    ButtonProps::default(),
+                                )
+                                InteractionDisabled
+                                DemoDisabledButton
+                                on(|_: On<Activate>| {
+                                    info!("Disabled button clicked!");
+                                })
+                                [ (Text::new("Disabled") ThemedText) ]
+                            ),
+                            (
+                                button(
+                                    ButtonProps {
+                                        variant: ButtonVariant::Primary,
+                                        ..default()
+                                    }
+                                )
+                                on(|_: On<Activate>| {
+                                    info!("Primary button clicked!");
+                                })
+                                [ (Text::new("Primary") ThemedText) ]
+                            ),
+                            (
+                                menu(|parent| {
+                                    parent.spawn_related_scenes::<Children>(bsn_list!(
+                                        :menu_popup()
+                                        [
+                                            (
+                                                :menu_item()
+                                                on(|_: On<Activate>| {
+                                                    info!("Menu item clicked!");
+                                                })
+                                                [
+                                                    (Text("MenuItem") ThemedText)
+                                                ]
+                                            ),
+                                            (
+                                                :menu_item()
+                                                on(|_: On<Activate>| {
+                                                    info!("Menu item clicked!");
+                                                })
+                                                [
+                                                    (Text("MenuItem") ThemedText)
+                                                ]
+                                            )
+                                        ]
+                                    ));
+                                }) [
+                                    (
+                                        :menu_button(MenuButtonProps::default())
+                                        [
+                                            (Text("Menu") ThemedText)
+                                        ]
+                                    )
+                                ]
+                            )
+                        ]
+                    ),
+                    (
+                        Node {
+                            display: Display::Flex,
+                            flex_direction: FlexDirection::Row,
+                            align_items: AlignItems::Center,
+                            justify_content: JustifyContent::Start,
+                            column_gap: px(1),
+                        }
+                        [
+                            (
+                                button(
+                                    ButtonProps {
+                                        corners: RoundedCorners::Left,
+                                        ..default()
+                                    },
+                                )
+                                on(|_: On<Activate>| {
+                                    info!("Left button clicked!");
+                                })
+                                [ (Text::new("Left") ThemedText) ]
+                            ),
+                            (
+                                button(
+                                    ButtonProps {
+                                        corners: RoundedCorners::None,
+                                        ..default()
+                                    },
+                                )
+                                on(|_: On<Activate>| {
+                                    info!("Center button clicked!");
+                                })
+                                [ (Text::new("Center") ThemedText) ]
+                            ),
+                            (
+                                button(
+                                    ButtonProps {
+                                        variant: ButtonVariant::Primary,
+                                        corners: RoundedCorners::Right,
+                                    },
+                                )
+                                on(|_: On<Activate>| {
+                                    info!("Right button clicked!");
+                                })
+                                [ (Text::new("Right") ThemedText) ]
+                            ),
+                        ]
+                    ),
+                    (
+                        button(
+                            ButtonProps::default(),
+                        )
+                        on(|_: On<Activate>| {
+                            info!("Wide button clicked!");
+                        })
+                        [ (Text::new("Button") ThemedText) ]
+                    ),
+                    (
+                        checkbox()
+                        Checked
+                        on(
+                            |change: On<ValueChange<bool>>,
+                             query: Query<Entity, With<DemoDisabledButton>>,
+                             mut commands: Commands| {
+                                info!("Checkbox clicked!");
+                                let mut button = commands.entity(query.single().unwrap());
+                                if change.value {
+                                    button.insert(InteractionDisabled);
+                                } else {
+                                    button.remove::<InteractionDisabled>();
+                                }
+                                let mut checkbox = commands.entity(change.source);
+                                if change.value {
+                                    checkbox.insert(Checked);
+                                } else {
+                                    checkbox.remove::<Checked>();
+                                }
+                            }
+                        )
+                        [ (Text::new("Checkbox") ThemedText) ]
+                    ),
+                    (
+                        checkbox()
+                        InteractionDisabled
+                        on(|_change: On<ValueChange<bool>>| {
+                            warn!("Disabled checkbox clicked!");
+                        })
+                        [ (Text::new("Disabled") ThemedText) ]
+                    ),
+                    (
+                        checkbox()
+                        InteractionDisabled
+                        Checked
+                        on(|_change: On<ValueChange<bool>>| {
+                            warn!("Disabled checkbox clicked!");
+                        })
+                        [ (Text::new("Disabled+Checked") ThemedText) ]
+                    ),
+                    (
+                        Node {
+                            display: Display::Flex,
+                            flex_direction: FlexDirection::Column,
+                            row_gap: px(4),
+                        }
+                        RadioGroup
+                        on(
+                            |value_change: On<ValueChange<Entity>>,
+                             q_radio: Query<Entity, With<RadioButton>>,
+                             mut commands: Commands| {
+                                for radio in q_radio.iter() {
+                                    if radio == value_change.value {
+                                        commands.entity(radio).insert(Checked);
+                                    } else {
+                                        commands.entity(radio).remove::<Checked>();
+                                    }
+                                }
+                            }
+                        )
+                        [
+                            radio() Checked Children [ (Text::new("One") ThemedText) ],
+                            radio() [ (Text::new("Two") ThemedText) ],
+                            radio() [ (Text::new("Three") ThemedText) ],
+                            radio() InteractionDisabled Children [ (Text::new("Disabled") ThemedText) ]
+                        ]
+                    ),
+                    (
+                        Node {
+                            display: Display::Flex,
+                            flex_direction: FlexDirection::Row,
+                            align_items: AlignItems::Center,
+                            justify_content: JustifyContent::Start,
+                            column_gap: px(8),
+                        }
+                        [
+                            (toggle_switch() on(checkbox_self_update)),
+                            (
+                                toggle_switch()
+                                InteractionDisabled
+                                on(checkbox_self_update)
+                            ),
+                            (
+                                toggle_switch()
+                                InteractionDisabled
+                                Checked
+                                on(checkbox_self_update)
+                            ),
+                        ]
+                    ),
+                    (
+                        slider(SliderProps {
+                            max: 100.0,
+                            value: 20.0,
+                            ..default()
+                        })
+                        SliderStep(10.)
+                        SliderPrecision(2)
+                        on(slider_self_update)
+                    ),
+                    (
+                        Node {
+                            display: Display::Flex,
+                            flex_direction: FlexDirection::Row,
+                            justify_content: JustifyContent::SpaceBetween,
+                        }
+                        [Text("Srgba"), (color_swatch() SwatchType::Rgb)]
+                    ),
+                    (
+                        color_slider(ColorSliderProps {
+                            value: 0.5,
+                            channel: ColorChannel::Red
+                        })
+                        on(|change: On<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
+                                color.rgb_color.red = change.value;
+                        })
+                    ),
+                    (
+                        color_slider(ColorSliderProps {
+                            value: 0.5,
+                            channel: ColorChannel::Green
+                        })
+                        on(|change: On<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
+                            color.rgb_color.green = change.value;
+                        })
+                    ),
+                    (
+                        color_slider(ColorSliderProps {
+                            value: 0.5,
+                            channel: ColorChannel::Blue
+                        })
+                        on(|change: On<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
+                            color.rgb_color.blue = change.value;
+                        })
+                    ),
+                    (
+                        color_slider(ColorSliderProps {
+                            value: 0.5,
+                            channel: ColorChannel::Alpha
+                        })
+                        on(|change: On<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
+                            color.rgb_color.alpha = change.value;
+                        })
+                    ),
+                    (
+                        Node {
+                            display: Display::Flex,
+                            flex_direction: FlexDirection::Row,
+                            justify_content: JustifyContent::SpaceBetween,
+                        }
+                        [Text("Hsl"), (color_swatch() SwatchType::Hsl)]
+                    ),
+                    (
+                        color_slider(ColorSliderProps {
+                            value: 0.5,
+                            channel: ColorChannel::HslHue
+                        })
+                        on(|change: On<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
+                            color.hsl_color.hue = change.value;
+                        })
+                    ),
+                    (
+                        color_slider(ColorSliderProps {
+                            value: 0.5,
+                            channel: ColorChannel::HslSaturation
+                        })
+                        on(|change: On<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
+                            color.hsl_color.saturation = change.value;
+                        })
+                    ),
+                    (
+                        color_slider(ColorSliderProps {
+                            value: 0.5,
+                            channel: ColorChannel::HslLightness
+                        })
+                        on(|change: On<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
+                            color.hsl_color.lightness = change.value;
+                        })
+                    )
+                ]
+            ),
             Node {
                 display: Display::Flex,
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Stretch,
                 justify_content: JustifyContent::Start,
-                padding: UiRect::all(px(8)),
-                row_gap: px(8),
-                width: percent(30),
-                min_width: px(200),
-            }
-            [
+                padding: UiRect::all(Val::Px(8.0)),
+                row_gap: Val::Px(8.0),
+                width: Val::Percent(30.),
+                min_width: Val::Px(200.),
+            } [
                 (
-                    Node {
-                        display: Display::Flex,
-                        flex_direction: FlexDirection::Row,
-                        align_items: AlignItems::Center,
-                        justify_content: JustifyContent::Start,
-                        column_gap: px(8),
-                    }
-                    [
-                        (
-                            button(ButtonProps::default())
-                            on(|_: On<Activate>| {
-                                info!("Normal button clicked!");
-                            })
-                            [ (Text::new("Normal") ThemedText) ]
-                        ),
-                        (
-                            button(
-                                ButtonProps::default(),
-                            )
-                            InteractionDisabled
-                            DemoDisabledButton
-                            on(|_: On<Activate>| {
-                                info!("Disabled button clicked!");
-                            })
-                            [ (Text::new("Disabled") ThemedText) ]
-                        ),
-                        (
-                            button(
-                                ButtonProps {
-                                    variant: ButtonVariant::Primary,
-                                    ..default()
-                                }
-                            )
-                            on(|_: On<Activate>| {
-                                info!("Primary button clicked!");
-                            })
-                            [ (Text::new("Primary") ThemedText) ]
-                        ),
-                        (
-                            menu(|parent| {
-                                parent.spawn_related_scenes::<Children>(bsn_list!(
-                                    :menu_popup()
-                                    [
-                                        (
-                                            :menu_item()
-                                            on(|_: On<Activate>| {
-                                                info!("Menu item clicked!");
-                                            })
-                                            [
-                                                (Text("MenuItem") ThemedText)
-                                            ]
-                                        ),
-                                        (
-                                            :menu_item()
-                                            on(|_: On<Activate>| {
-                                                info!("Menu item clicked!");
-                                            })
-                                            [
-                                                (Text("MenuItem") ThemedText)
-                                            ]
-                                        )
-                                    ]
-                                ));
+                    :subpane [
+                        :subpane_header [
+                            (Text("Left") ThemedText),
+                            (Text("Center") ThemedText),
+                            (Text("Right") ThemedText)
+                        ],
+                        :subpane_body [
+                            (Text("Body") ThemedText),
+                        ],
+                    ]
+                ),
+                (
+                    :pane [
+                        :pane_header [
+                            :tool_button(ButtonProps {
+                                variant: ButtonVariant::Primary,
+                                ..default()
                             }) [
-                                (
-                                    :menu_button(MenuButtonProps::default())
-                                    [
-                                        (Text("Menu") ThemedText)
-                                    ]
-                                )
+                                (Text("\u{0398}") ThemedText)
+                            ],
+                            :pane_header_divider,
+                            :tool_button(ButtonProps{
+                                variant: ButtonVariant::Plain,
+                                ..default()
+                            }) [
+                                (Text("\u{00BC}") ThemedText)
+                            ],
+                            :tool_button(ButtonProps{
+                                variant: ButtonVariant::Plain,
+                                ..default()
+                            }) [
+                                (Text("\u{00BD}") ThemedText)
+                            ],
+                            :tool_button(ButtonProps{
+                                variant: ButtonVariant::Plain,
+                                ..default()
+                            }) [
+                                (Text("\u{00BE}") ThemedText)
+                            ],
+                            :pane_header_divider,
+                            :tool_button(ButtonProps{
+                                variant: ButtonVariant::Plain,
+                                ..default()
+                            }) [
+                                :icon(icons::CHEVRON_DOWN)
+                            ],
+                            :flex_spacer,
+                            :tool_button(ButtonProps{
+                                variant: ButtonVariant::Plain,
+                                ..default()
+                            }) [
+                                :icon(icons::X)
+                            ],
+                        ],
+                        (
+                            :pane_body [
+                                (Text("Some") ThemedText),
+                                (Text("Content") ThemedText),
+                                (Text("Here") ThemedText),
                             ]
-                        )
-                    ]
-                ),
-                (
-                    Node {
-                        display: Display::Flex,
-                        flex_direction: FlexDirection::Row,
-                        align_items: AlignItems::Center,
-                        justify_content: JustifyContent::Start,
-                        column_gap: px(1),
-                    }
-                    [
-                        (
-                            button(
-                                ButtonProps {
-                                    corners: RoundedCorners::Left,
-                                    ..default()
-                                },
-                            )
-                            on(|_: On<Activate>| {
-                                info!("Left button clicked!");
-                            })
-                            [ (Text::new("Left") ThemedText) ]
-                        ),
-                        (
-                            button(
-                                ButtonProps {
-                                    corners: RoundedCorners::None,
-                                    ..default()
-                                },
-                            )
-                            on(|_: On<Activate>| {
-                                info!("Center button clicked!");
-                            })
-                            [ (Text::new("Center") ThemedText) ]
-                        ),
-                        (
-                            button(
-                                ButtonProps {
-                                    variant: ButtonVariant::Primary,
-                                    corners: RoundedCorners::Right,
-                                },
-                            )
-                            on(|_: On<Activate>| {
-                                info!("Right button clicked!");
-                            })
-                            [ (Text::new("Right") ThemedText) ]
+                            BackgroundColor(palettes::tailwind::EMERALD_800)
                         ),
                     ]
-                ),
-                (
-                    button(
-                        ButtonProps::default(),
-                    )
-                    on(|_: On<Activate>| {
-                        info!("Wide button clicked!");
-                    })
-                    [ (Text::new("Button") ThemedText) ]
-                ),
-                (
-                    checkbox()
-                    Checked
-                    on(
-                        |change: On<ValueChange<bool>>,
-                         query: Query<Entity, With<DemoDisabledButton>>,
-                         mut commands: Commands| {
-                            info!("Checkbox clicked!");
-                            let mut button = commands.entity(query.single().unwrap());
-                            if change.value {
-                                button.insert(InteractionDisabled);
-                            } else {
-                                button.remove::<InteractionDisabled>();
-                            }
-                            let mut checkbox = commands.entity(change.source);
-                            if change.value {
-                                checkbox.insert(Checked);
-                            } else {
-                                checkbox.remove::<Checked>();
-                            }
-                        }
-                    )
-                    [ (Text::new("Checkbox") ThemedText) ]
-                ),
-                (
-                    checkbox()
-                    InteractionDisabled
-                    on(|_change: On<ValueChange<bool>>| {
-                        warn!("Disabled checkbox clicked!");
-                    })
-                    [ (Text::new("Disabled") ThemedText) ]
-                ),
-                (
-                    checkbox()
-                    InteractionDisabled
-                    Checked
-                    on(|_change: On<ValueChange<bool>>| {
-                        warn!("Disabled checkbox clicked!");
-                    })
-                    [ (Text::new("Disabled+Checked") ThemedText) ]
-                ),
-                (
-                    Node {
-                        display: Display::Flex,
-                        flex_direction: FlexDirection::Column,
-                        row_gap: px(4),
-                    }
-                    RadioGroup
-                    on(
-                        |value_change: On<ValueChange<Entity>>,
-                         q_radio: Query<Entity, With<RadioButton>>,
-                         mut commands: Commands| {
-                            for radio in q_radio.iter() {
-                                if radio == value_change.value {
-                                    commands.entity(radio).insert(Checked);
-                                } else {
-                                    commands.entity(radio).remove::<Checked>();
-                                }
-                            }
-                        }
-                    )
-                    [
-                        radio() Checked Children [ (Text::new("One") ThemedText) ],
-                        radio() [ (Text::new("Two") ThemedText) ],
-                        radio() [ (Text::new("Three") ThemedText) ],
-                        radio() InteractionDisabled Children [ (Text::new("Disabled") ThemedText) ]
-                    ]
-                ),
-                (
-                    Node {
-                        display: Display::Flex,
-                        flex_direction: FlexDirection::Row,
-                        align_items: AlignItems::Center,
-                        justify_content: JustifyContent::Start,
-                        column_gap: px(8),
-                    }
-                    [
-                        (toggle_switch() on(checkbox_self_update)),
-                        (
-                            toggle_switch()
-                            InteractionDisabled
-                            on(checkbox_self_update)
-                        ),
-                        (
-                            toggle_switch()
-                            InteractionDisabled
-                            Checked
-                            on(checkbox_self_update)
-                        ),
-                    ]
-                ),
-                (
-                    slider(SliderProps {
-                        max: 100.0,
-                        value: 20.0,
-                        ..default()
-                    })
-                    SliderStep(10.)
-                    SliderPrecision(2)
-                    on(slider_self_update)
-                ),
-                (
-                    Node {
-                        display: Display::Flex,
-                        flex_direction: FlexDirection::Row,
-                        justify_content: JustifyContent::SpaceBetween,
-                    }
-                    [Text("Srgba"), (color_swatch() SwatchType::Rgb)]
-                ),
-                (
-                    color_slider(ColorSliderProps {
-                        value: 0.5,
-                        channel: ColorChannel::Red
-                    })
-                    on(|change: On<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
-                            color.rgb_color.red = change.value;
-                    })
-                ),
-                (
-                    color_slider(ColorSliderProps {
-                        value: 0.5,
-                        channel: ColorChannel::Green
-                    })
-                    on(|change: On<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
-                        color.rgb_color.green = change.value;
-                    })
-                ),
-                (
-                    color_slider(ColorSliderProps {
-                        value: 0.5,
-                        channel: ColorChannel::Blue
-                    })
-                    on(|change: On<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
-                        color.rgb_color.blue = change.value;
-                    })
-                ),
-                (
-                    color_slider(ColorSliderProps {
-                        value: 0.5,
-                        channel: ColorChannel::Alpha
-                    })
-                    on(|change: On<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
-                        color.rgb_color.alpha = change.value;
-                    })
-                ),
-                (
-                    Node {
-                        display: Display::Flex,
-                        flex_direction: FlexDirection::Row,
-                        justify_content: JustifyContent::SpaceBetween,
-                    }
-                    [Text("Hsl"), (color_swatch() SwatchType::Hsl)]
-                ),
-                (
-                    color_slider(ColorSliderProps {
-                        value: 0.5,
-                        channel: ColorChannel::HslHue
-                    })
-                    on(|change: On<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
-                        color.hsl_color.hue = change.value;
-                    })
-                ),
-                (
-                    color_slider(ColorSliderProps {
-                        value: 0.5,
-                        channel: ColorChannel::HslSaturation
-                    })
-                    on(|change: On<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
-                        color.hsl_color.saturation = change.value;
-                    })
-                ),
-                (
-                    color_slider(ColorSliderProps {
-                        value: 0.5,
-                        channel: ColorChannel::HslLightness
-                    })
-                    on(|change: On<ValueChange<f32>>, mut color: ResMut<DemoWidgetStates>| {
-                        color.hsl_color.lightness = change.value;
-                    })
                 )
             ]
-        )]
+        ]
     }
 }
 

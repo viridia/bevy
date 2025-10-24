@@ -1,6 +1,6 @@
 //! The standard `bevy_feathers` dark theme.
 use crate::{palette, tokens};
-use bevy_color::{Alpha, Luminance};
+use bevy_color::{Alpha, Color, Luminance};
 use bevy_platform::collections::HashMap;
 
 use crate::theme::ThemeProps;
@@ -10,11 +10,12 @@ pub fn create_dark_theme() -> ThemeProps {
     ThemeProps {
         color: HashMap::from([
             (tokens::WINDOW_BG, palette::GRAY_0),
-            // Button
+            // Button (normal)
             (tokens::BUTTON_BG, palette::GRAY_3),
             (tokens::BUTTON_BG_HOVER, palette::GRAY_3.lighter(0.05)),
             (tokens::BUTTON_BG_PRESSED, palette::GRAY_3.lighter(0.1)),
             (tokens::BUTTON_BG_DISABLED, palette::GRAY_2),
+            // Button (primary)
             (tokens::BUTTON_PRIMARY_BG, palette::ACCENT),
             (
                 tokens::BUTTON_PRIMARY_BG_HOVER,
@@ -25,6 +26,12 @@ pub fn create_dark_theme() -> ThemeProps {
                 palette::ACCENT.lighter(0.1),
             ),
             (tokens::BUTTON_PRIMARY_BG_DISABLED, palette::GRAY_2),
+            // Button (plain)
+            (tokens::BUTTON_PLAIN_BG, Color::NONE),
+            (tokens::BUTTON_PLAIN_BG_HOVER, palette::GRAY_2),
+            (tokens::BUTTON_PLAIN_BG_PRESSED, palette::GRAY_3),
+            (tokens::BUTTON_PLAIN_BG_DISABLED, Color::NONE),
+            // Button text
             (tokens::BUTTON_TEXT, palette::WHITE),
             (tokens::BUTTON_TEXT_DISABLED, palette::WHITE.with_alpha(0.5)),
             (tokens::BUTTON_PRIMARY_TEXT, palette::WHITE),
@@ -105,6 +112,17 @@ pub fn create_dark_theme() -> ThemeProps {
                 tokens::MENUITEM_TEXT_DISABLED,
                 palette::WHITE.with_alpha(0.5),
             ),
+            // Pane
+            (tokens::PANE_HEADER_BG, palette::GRAY_0),
+            (tokens::PANE_HEADER_BORDER, palette::WARM_GRAY_1),
+            (tokens::PANE_HEADER_TEXT, palette::LIGHT_GRAY_1),
+            (tokens::PANE_HEADER_DIVIDER, palette::WARM_GRAY_1),
+            // Subpane
+            (tokens::SUBPANE_HEADER_BG, palette::GRAY_2),
+            (tokens::SUBPANE_HEADER_BORDER, palette::GRAY_3),
+            (tokens::SUBPANE_HEADER_TEXT, palette::LIGHT_GRAY_1),
+            (tokens::SUBPANE_BODY_BG, palette::GRAY_1),
+            (tokens::SUBPANE_BODY_BORDER, palette::GRAY_2),
         ]),
     }
 }
