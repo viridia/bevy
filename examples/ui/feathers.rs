@@ -9,10 +9,10 @@ use bevy::{
             subpane_header,
         },
         controls::{
-            button, checkbox, color_slider, color_swatch, menu, menu_button, menu_item, menu_popup,
-            radio, slider, toggle_switch, tool_button, ButtonProps, ButtonVariant, ColorChannel,
-            ColorSlider, ColorSliderProps, ColorSwatch, MenuButtonProps, SliderBaseColor,
-            SliderProps,
+            button, checkbox, color_slider, color_swatch, listrow, listview, menu, menu_button,
+            menu_item, menu_popup, radio, slider, toggle_switch, tool_button, ButtonProps,
+            ButtonVariant, ColorChannel, ColorSlider, ColorSliderProps, ColorSwatch,
+            MenuButtonProps, SliderBaseColor, SliderProps,
         },
         dark_theme::create_dark_theme,
         icon,
@@ -422,7 +422,24 @@ fn demo_root() -> impl Scene {
                             (Text("Right") ThemedText)
                         ],
                         :subpane_body [
-                            (Text("Body") ThemedText),
+                            :listview
+                            Node {
+                                max_height: px(130)
+                            }
+                            [
+                                :listrow [(Text("First World") ThemedText)],
+                                :listrow [(Text("Second Nature") ThemedText)],
+                                :listrow [(Text("Third Degree") ThemedText)],
+                                :listrow [(Text("Fourth Wall") ThemedText)],
+                                :listrow [(Text("Fifth Column") ThemedText)],
+                                :listrow [(Text("Sixth Sense") ThemedText)],
+                                :listrow [(Text("Seventh Heaven") ThemedText)],
+                                :listrow [(Text("Eighth Wonder") ThemedText)],
+                                :listrow [(Text("Ninth Inning") ThemedText)],
+                                :listrow [(Text("Tenth Amendment") ThemedText)],
+                                :listrow [(Text("Eleventh Hour") ThemedText)],
+                                :listrow [(Text("Twelfth Night") ThemedText)],
+                            ]
                         ],
                     ]
                 ),

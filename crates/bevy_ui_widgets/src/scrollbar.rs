@@ -48,7 +48,7 @@ pub enum ControlOrientation {
 /// The application is free to position the scrollbars relative to the scrolling container however
 /// it wants: it can overlay them on top of the scrolling content, or use a grid layout to displace
 /// the content to make room for the scrollbars.
-#[derive(Component, Debug, Reflect)]
+#[derive(Component, Debug, Reflect, Clone)]
 #[reflect(Component)]
 pub struct Scrollbar {
     /// Entity being scrolled.
@@ -60,6 +60,16 @@ pub struct Scrollbar {
     /// visible size to content size, but no smaller than this. This prevents the thumb from
     /// disappearing in cases where the ratio of content size to visible size is large.
     pub min_thumb_length: f32,
+}
+
+impl Default for Scrollbar {
+    fn default() -> Self {
+        Self {
+            target: Entity::PLACEHOLDER,
+            orientation: Default::default(),
+            min_thumb_length: Default::default(),
+        }
+    }
 }
 
 /// Marker component to indicate that the entity is a scrollbar thumb (the moving, draggable part of

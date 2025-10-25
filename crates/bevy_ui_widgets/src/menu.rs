@@ -24,7 +24,7 @@ use bevy_input_focus::{
     tab_navigation::{NavAction, TabGroup, TabNavigation},
     FocusedInput, InputFocus,
 };
-use bevy_log::{info, warn};
+use bevy_log::warn;
 use bevy_picking::events::{Cancel, Click, DragEnd, Pointer, Press, Release};
 use bevy_ui::{InteractionDisabled, Pressed};
 

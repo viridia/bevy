@@ -55,7 +55,7 @@ pub struct ButtonProps {
 pub fn button(props: ButtonProps) -> impl Scene {
     bsn! {
         Node {
-            height: size::ROW_HEIGHT,
+            min_height: size::ROW_HEIGHT,
             min_width: size::ROW_HEIGHT,
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
