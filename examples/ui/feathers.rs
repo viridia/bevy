@@ -422,24 +422,25 @@ fn demo_root() -> impl Scene {
                             (Text("Right") ThemedText)
                         ],
                         :subpane_body [
-                            :listview
+                            :listview(
+                                bsn_list! [
+                                    :listrow [(Text("First World") ThemedText)],
+                                    :listrow [(Text("Second Nature") ThemedText)],
+                                    :listrow [(Text("Third Degree") ThemedText)],
+                                    :listrow [(Text("Fourth Wall") ThemedText)],
+                                    :listrow [(Text("Fifth Column") ThemedText)],
+                                    :listrow [(Text("Sixth Sense") ThemedText)],
+                                    :listrow [(Text("Seventh Heaven") ThemedText)],
+                                    :listrow [(Text("Eighth Wonder") ThemedText)],
+                                    :listrow [(Text("Ninth Inning") ThemedText)],
+                                    :listrow [(Text("Tenth Amendment") ThemedText)],
+                                    :listrow [(Text("Eleventh Hour") ThemedText)],
+                                    :listrow [(Text("Twelfth Night") ThemedText)],
+                                ]
+                            )
                             Node {
                                 max_height: px(130)
                             }
-                            [
-                                :listrow [(Text("First World") ThemedText)],
-                                :listrow [(Text("Second Nature") ThemedText)],
-                                :listrow [(Text("Third Degree") ThemedText)],
-                                :listrow [(Text("Fourth Wall") ThemedText)],
-                                :listrow [(Text("Fifth Column") ThemedText)],
-                                :listrow [(Text("Sixth Sense") ThemedText)],
-                                :listrow [(Text("Seventh Heaven") ThemedText)],
-                                :listrow [(Text("Eighth Wonder") ThemedText)],
-                                :listrow [(Text("Ninth Inning") ThemedText)],
-                                :listrow [(Text("Tenth Amendment") ThemedText)],
-                                :listrow [(Text("Eleventh Hour") ThemedText)],
-                                :listrow [(Text("Twelfth Night") ThemedText)],
-                            ]
                         ],
                     ]
                 ),

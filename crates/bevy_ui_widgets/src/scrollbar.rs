@@ -7,6 +7,7 @@ use bevy_ecs::{
     query::{With, Without},
     reflect::ReflectComponent,
     system::{Query, Res},
+    template::GetTemplate,
 };
 use bevy_math::Vec2;
 use bevy_picking::events::{Cancel, Drag, DragEnd, DragStart, Pointer, Press};
@@ -48,7 +49,7 @@ pub enum ControlOrientation {
 /// The application is free to position the scrollbars relative to the scrolling container however
 /// it wants: it can overlay them on top of the scrolling content, or use a grid layout to displace
 /// the content to make room for the scrollbars.
-#[derive(Component, Debug, Reflect, Clone)]
+#[derive(Component, Debug, Reflect, Clone, GetTemplate)]
 #[reflect(Component)]
 pub struct Scrollbar {
     /// Entity being scrolled.
@@ -62,23 +63,13 @@ pub struct Scrollbar {
     pub min_thumb_length: f32,
 }
 
-impl Default for Scrollbar {
-    fn default() -> Self {
-        Self {
-            target: Entity::PLACEHOLDER,
-            orientation: Default::default(),
-            min_thumb_length: Default::default(),
-        }
-    }
-}
-
 /// Marker component to indicate that the entity is a scrollbar thumb (the moving, draggable part of
 /// the scrollbar). This should be a child of the scrollbar entity.
-#[derive(Component, Debug)]
-#[require(CoreScrollbarDragState)]
+#[derive(Component, Debug, Default, Clone)]
+#[require(ScrollbarDragState)]
 #[derive(Reflect)]
 #[reflect(Component)]
-pub struct CoreScrollbarThumb;
+pub struct ScrollbarThumb;
 
 impl Scrollbar {
     /// Construct a new scrollbar.
@@ -101,7 +92,7 @@ impl Scrollbar {
 /// inserted on the thumb entity.
 #[derive(Component, Default, Reflect)]
 #[reflect(Component, Default)]
-pub struct CoreScrollbarDragState {
+pub struct ScrollbarDragState {
     /// Whether the scrollbar is currently being dragged.
     pub dragging: bool,
     /// The value of the scrollbar when dragging started.
@@ -110,7 +101,7 @@ pub struct CoreScrollbarDragState {
 
 fn scrollbar_on_pointer_down(
     mut ev: On<Pointer<Press>>,
-    q_thumb: Query<&ChildOf, With<CoreScrollbarThumb>>,
+    q_thumb: Query<&ChildOf, With<ScrollbarThumb>>,
     mut q_scrollbar: Query<(
         &Scrollbar,
         &ComputedNode,
@@ -168,7 +159,7 @@ fn scrollbar_on_pointer_down(
 
 fn scrollbar_on_drag_start(
     mut ev: On<Pointer<DragStart>>,
-    mut q_thumb: Query<(&ChildOf, &mut CoreScrollbarDragState), With<CoreScrollbarThumb>>,
+    mut q_thumb: Query<(&ChildOf, &mut ScrollbarDragState), With<ScrollbarThumb>>,
     q_scrollbar: Query<&Scrollbar>,
     q_scroll_area: Query<&ScrollPosition>,
 ) {
@@ -188,7 +179,7 @@ fn scrollbar_on_drag_start(
 
 fn scrollbar_on_drag(
     mut ev: On<Pointer<Drag>>,
-    mut q_thumb: Query<(&ChildOf, &mut CoreScrollbarDragState), With<CoreScrollbarThumb>>,
+    mut q_thumb: Query<(&ChildOf, &mut ScrollbarDragState), With<ScrollbarThumb>>,
     mut q_scrollbar: Query<(&ComputedNode, &Scrollbar)>,
     mut q_scroll_pos: Query<(&mut ScrollPosition, &ComputedNode), Without<Scrollbar>>,
     ui_scale: Res<UiScale>,
@@ -227,7 +218,7 @@ fn scrollbar_on_drag(
 
 fn scrollbar_on_drag_end(
     mut ev: On<Pointer<DragEnd>>,
-    mut q_thumb: Query<&mut CoreScrollbarDragState, With<CoreScrollbarThumb>>,
+    mut q_thumb: Query<&mut ScrollbarDragState, With<ScrollbarThumb>>,
 ) {
     if let Ok(mut drag) = q_thumb.get_mut(ev.entity) {
         ev.propagate(false);
@@ -239,7 +230,7 @@ fn scrollbar_on_drag_end(
 
 fn scrollbar_on_drag_cancel(
     mut ev: On<Pointer<Cancel>>,
-    mut q_thumb: Query<&mut CoreScrollbarDragState, With<CoreScrollbarThumb>>,
+    mut q_thumb: Query<&mut ScrollbarDragState, With<ScrollbarThumb>>,
 ) {
     if let Ok(mut drag) = q_thumb.get_mut(ev.entity) {
         ev.propagate(false);
@@ -252,7 +243,7 @@ fn scrollbar_on_drag_cancel(
 fn update_scrollbar_thumb(
     q_scroll_area: Query<(&ScrollPosition, &ComputedNode)>,
     q_scrollbar: Query<(&Scrollbar, &ComputedNode, &Children)>,
-    mut q_thumb: Query<&mut Node, With<CoreScrollbarThumb>>,
+    mut q_thumb: Query<&mut Node, With<ScrollbarThumb>>,
 ) {
     for (scrollbar, scrollbar_node, children) in q_scrollbar.iter() {
         let Ok(scroll_area) = q_scroll_area.get(scrollbar.target) else {

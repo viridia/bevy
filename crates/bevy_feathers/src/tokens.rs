@@ -79,6 +79,16 @@ pub const SLIDER_TEXT: ThemeToken = ThemeToken::new_static("feathers.slider.text
 pub const SLIDER_TEXT_DISABLED: ThemeToken =
     ThemeToken::new_static("feathers.slider.text.disabled");
 
+// Scrollbar
+
+/// Background for scrollbar
+pub const SCROLLBAR_BG: ThemeToken = ThemeToken::new_static("feathers.scrollbar.bg");
+/// Background for scrollbar moving bar
+pub const SCROLLBAR_THUMB: ThemeToken = ThemeToken::new_static("feathers.scrollbar.thumb");
+/// Background for scrollbar moving bar (hovered)
+pub const SCROLLBAR_THUMB_HOVER: ThemeToken =
+    ThemeToken::new_static("feathers.scrollbar.thumb.hover");
+
 // Checkbox
 
 /// Checkbox background around the checkmark

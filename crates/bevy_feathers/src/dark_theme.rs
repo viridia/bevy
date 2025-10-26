@@ -45,6 +45,10 @@ pub fn create_dark_theme() -> ThemeProps {
             (tokens::SLIDER_BAR_DISABLED, palette::GRAY_2),
             (tokens::SLIDER_TEXT, palette::WHITE),
             (tokens::SLIDER_TEXT_DISABLED, palette::WHITE.with_alpha(0.5)),
+            // Scrollbar
+            (tokens::SCROLLBAR_BG, palette::GRAY_2),
+            (tokens::SCROLLBAR_THUMB, palette::ACCENT),
+            (tokens::SCROLLBAR_THUMB_HOVER, palette::ACCENT.lighter(0.1)),
             // Checkbox
             (tokens::CHECKBOX_BG, palette::GRAY_3),
             (tokens::CHECKBOX_BG_CHECKED, palette::ACCENT),

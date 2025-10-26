@@ -9,7 +9,7 @@ use bevy::{
     picking::hover::Hovered,
     prelude::*,
     ui_widgets::{
-        ControlOrientation, CoreScrollbarDragState, CoreScrollbarThumb, Scrollbar, ScrollbarPlugin,
+        ControlOrientation, Scrollbar, ScrollbarDragState, ScrollbarPlugin, ScrollbarThumb,
     },
 };
 
@@ -125,7 +125,7 @@ fn scroll_area_demo() -> impl Bundle {
                     Hovered::default(),
                     BackgroundColor(colors::GRAY2.into()),
                     BorderRadius::all(px(4)),
-                    CoreScrollbarThumb,
+                    ScrollbarThumb,
                 ))),
             ));
 
@@ -150,7 +150,7 @@ fn scroll_area_demo() -> impl Bundle {
                     Hovered::default(),
                     BackgroundColor(colors::GRAY2.into()),
                     BorderRadius::all(px(4)),
-                    CoreScrollbarThumb,
+                    ScrollbarThumb,
                 ))),
             ));
         }),)),
@@ -171,10 +171,10 @@ fn text_row(caption: &str) -> impl Bundle {
 // Update the color of the scrollbar thumb.
 fn update_scrollbar_thumb(
     mut q_thumb: Query<
-        (&mut BackgroundColor, &Hovered, &CoreScrollbarDragState),
+        (&mut BackgroundColor, &Hovered, &ScrollbarDragState),
         (
-            With<CoreScrollbarThumb>,
-            Or<(Changed<Hovered>, Changed<CoreScrollbarDragState>)>,
+            With<ScrollbarThumb>,
+            Or<(Changed<Hovered>, Changed<ScrollbarDragState>)>,
         ),
     >,
 ) {

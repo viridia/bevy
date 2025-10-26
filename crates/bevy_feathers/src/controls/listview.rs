@@ -2,9 +2,8 @@ use accesskit::Role;
 use bevy_a11y::AccessibilityNode;
 use bevy_ecs::prelude::Name;
 use bevy_input_focus::tab_navigation::TabIndex;
-use bevy_math::Vec2;
 use bevy_picking::hover::Hovered;
-use bevy_scene2::{bsn, Scene};
+use bevy_scene2::{bsn, Scene, SceneList};
 use bevy_ui::{
     px, AlignItems, Display, FlexDirection, JustifyContent, Node, Overflow, PositionType,
     ScrollPosition, UiRect,
@@ -13,40 +12,54 @@ use bevy_ui_widgets::{ControlOrientation, Scrollbar};
 
 use crate::{
     constants::{fonts, size},
+    controls::scrollbar::scrollbar,
     font_styles::InheritableFont,
     theme::ThemeFontColor,
     tokens,
 };
 
 /// A container that displays a scrolling list of items
-pub fn listview() -> impl Scene {
+pub fn listview<S: SceneList>(children: S) -> impl Scene {
     bsn! {
-        #listview
+        // Outer frame that holds the scrollbar
         Node {
             display: Display::Flex,
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Stretch,
             justify_content: JustifyContent::Start,
-            overflow: Overflow::scroll_y(),
         }
-        ScrollPosition(Vec2::new(0.0, 10.0))
         AccessibilityNode(accesskit::Node::new(Role::ListBox))
         TabIndex(0)
         [
+            // Inner part that scrolls
             (
+                #inner
+                Node {
+                    display: Display::Flex,
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Stretch,
+                    justify_content: JustifyContent::Start,
+                    overflow: Overflow::scroll_y(),
+                }
+                ScrollPosition::default()
+                [
+                    {children}
+                ]
+            ),
+            // Scrollbar
+            (
+                :scrollbar()
                 Node {
                     position_type: PositionType::Absolute,
                     right: px(0),
                     top: px(0),
                     bottom: px(0),
-                    width: px(8),
-                    display: Display::Flex,
-                    flex_direction: FlexDirection::Column,
+                    width: px(6),
                 }
                 Scrollbar {
                     orientation: ControlOrientation::Vertical,
-                    // target: #listview,
-                    min_thumb_length: 8.0,
+                    target: #inner,
+                    min_thumb_length: 6.0,
                 }
             ),
         ]

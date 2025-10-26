@@ -8,6 +8,7 @@ mod color_swatch;
 mod listview;
 mod menu;
 mod radio;
+mod scrollbar;
 mod slider;
 mod toggle_switch;
 mod virtual_keyboard;
@@ -23,7 +24,7 @@ pub use slider::*;
 pub use toggle_switch::*;
 pub use virtual_keyboard::*;
 
-use crate::alpha_pattern::AlphaPatternPlugin;
+use crate::{alpha_pattern::AlphaPatternPlugin, controls::scrollbar::ScrollbarPlugin};
 
 /// Plugin which registers all `bevy_feathers` controls.
 pub struct ControlsPlugin;
@@ -37,6 +38,7 @@ impl Plugin for ControlsPlugin {
             ColorSliderPlugin,
             MenuPlugin,
             RadioPlugin,
+            ScrollbarPlugin,
             SliderPlugin,
             ToggleSwitchPlugin,
         ));
