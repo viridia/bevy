@@ -13,16 +13,20 @@ use bevy_ecs::{
 use bevy_input::keyboard::{KeyCode, KeyboardInput};
 use bevy_input::ButtonState;
 use bevy_input_focus::FocusedInput;
+use bevy_log::info;
 use bevy_picking::events::{Click, Pointer};
 use bevy_reflect::Reflect;
 use bevy_ui::{InteractionDisabled, Selectable, Selected};
 
-use crate::ValueChange;
+use crate::{ScrollIntoView, ValueChange};
 
 /// Headless widget implementation for a list box. This component contains multiple [`ListItem`]
 /// entities. It implements the tab navigation logic and keyboard shortcuts for list items.
 #[derive(Component, Debug, Clone, Default)]
-#[require(AccessibilityNode(accesskit::Node::new(Role::ListBox)))]
+#[require(
+    AccessibilityNode(accesskit::Node::new(Role::ListBox)),
+    ActiveDescendant
+)]
 pub struct ListBox;
 
 /// Marker component that indicates we want to support multiple selection of list items.
@@ -37,14 +41,41 @@ pub struct ListBoxMultiSelect;
 #[reflect(Component)]
 pub struct ListItem;
 
+/// Component used for keyboard navigation. Individual rows should not be focusable in
+/// the normal way, as this would make tabbing through a long list tedious. Instead, we track
+/// the current "active" row separately using a component on the list box. The active row
+/// will be displayed with an outline.
+///
+/// Based on the ARIA `active-descendant` attribute.
+#[derive(Component, Debug, Clone, Default, Reflect)]
+#[reflect(Component)]
+#[component(immutable)]
+pub struct ActiveDescendant {
+    /// The current active descendant, if any.
+    pub item: Option<Entity>,
+    /// Whether the active descendant outline should be visible. It should be hidden
+    /// whenever `focus_visible` is false or the container does not have focus.
+    pub visible: bool,
+}
+
+// TODO:
+// * Scroll into view when keyboard navigating
+// * Remove ActiveRow when not focused
+// * Remove ActiveRow when focus not visible
+// * Make focus visible on keyboard nav
+
 fn listbox_on_key_input(
     mut ev: On<FocusedInput<KeyboardInput>>,
-    q_listbox: Query<(), With<ListBox>>,
+    q_listbox: Query<&ActiveDescendant, With<ListBox>>,
     q_listitems: Query<(Has<Selected>, Has<InteractionDisabled>), With<ListItem>>,
     q_children: Query<&Children>,
     mut commands: Commands,
 ) {
     if q_listbox.contains(ev.focused_entity) {
+        let listbox = ev.focused_entity;
+        let Ok(active_descendant) = q_listbox.get(listbox) else {
+            return;
+        };
         let event = &ev.event().input;
         if event.state == ButtonState::Pressed
             && !event.repeat
@@ -56,6 +87,8 @@ fn listbox_on_key_input(
                     | KeyCode::ArrowRight
                     | KeyCode::Home
                     | KeyCode::End
+                    | KeyCode::Space
+                    | KeyCode::Enter
             )
         {
             let key_code = event.key_code;
@@ -63,39 +96,45 @@ fn listbox_on_key_input(
 
             // Find all listbox descendants that are not disabled
             let list_items = q_children
-                .iter_descendants(ev.focused_entity)
+                .iter_descendants(listbox)
                 .filter_map(|child_id| match q_listitems.get(child_id) {
-                    Ok((checked, false)) => Some((child_id, checked)),
+                    Ok((selected, false)) => Some((child_id, selected)),
                     Ok((_, true)) | Err(_) => None,
                 })
                 .collect::<Vec<_>>();
             if list_items.is_empty() {
                 return; // No enabled rows in the group
             }
-            let current_index = list_items
-                .iter()
-                .position(|(_, checked)| *checked)
-                .unwrap_or(usize::MAX); // Default to invalid index if none are checked
 
-            let next_index = match key_code {
+            // Prefer the current active descendant if it exists
+            let prev_active = list_items
+                .iter()
+                .position(|(id, _)| Some(*id) == active_descendant.item)
+                .or_else(|| {
+                    // Fallback to the first selected row if the active descendant isn't in list_items
+                    list_items.iter().position(|(_, selected)| *selected)
+                })
+                .unwrap_or(usize::MAX);
+
+            let next_active = match key_code {
                 KeyCode::ArrowUp | KeyCode::ArrowLeft => {
                     // Navigate to the previous list row in the group
-                    if current_index == 0 || current_index >= list_items.len() {
+                    if prev_active == 0 || prev_active >= list_items.len() {
                         // If we're at the first one, wrap around to the last
                         list_items.len() - 1
                     } else {
                         // Move to the previous one
-                        current_index - 1
+                        prev_active - 1
                     }
                 }
                 KeyCode::ArrowDown | KeyCode::ArrowRight => {
                     // Navigate to the next list row in the group
-                    if current_index >= list_items.len() - 1 {
+                    if prev_active >= list_items.len() - 1 {
                         // If we're at the last one, wrap around to the first
                         0
                     } else {
                         // Move to the next one
-                        current_index + 1
+                        prev_active + 1
                     }
                 }
                 KeyCode::Home => {
@@ -106,23 +145,41 @@ fn listbox_on_key_input(
                     // Navigate to the last list row in the group
                     list_items.len() - 1
                 }
+
+                KeyCode::Space | KeyCode::Enter => {
+                    // Toggle selected state of active row
+                    if prev_active < list_items.len() {
+                        let (active_id, selected) = list_items[prev_active];
+                        if !selected {
+                            commands.trigger(ValueChange::<Entity> {
+                                source: listbox,
+                                value: active_id,
+                            });
+                        }
+                    }
+                    return;
+                }
+
                 _ => {
                     return;
                 }
             };
 
-            if current_index == next_index {
+            if prev_active == next_active {
                 // If the next index is the same as the current, do nothing
                 return;
             }
 
-            let (next_id, _) = list_items[next_index];
-
-            // Trigger the on_change event for the newly selected row
-            commands.trigger(ValueChange::<Entity> {
-                source: ev.focused_entity,
-                value: next_id,
+            // Change active descendant
+            let (next_id, _) = list_items[next_active];
+            info!("Next active: {next_active} {next_id}");
+            commands.entity(listbox).insert(ActiveDescendant {
+                item: Some(next_id),
+                visible: true,
             });
+
+            // Scroll active descendant into view
+            commands.trigger(ScrollIntoView { entity: next_id });
         }
     }
 }
@@ -240,7 +297,6 @@ pub fn listbox_update_selection(
         };
 
         // Gather all enabled list items that are descendants of the found ListBox.
-        // requires: q_children: Query<&Children>
         let enabled_rows = q_children
             .iter_descendants(listbox)
             .filter_map(|child_id| match q_listitems.get(child_id) {

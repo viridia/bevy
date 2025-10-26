@@ -4,7 +4,9 @@ use bevy_app::{Plugin, PreUpdate};
 use bevy_ecs::{
     component::Component,
     entity::Entity,
-    lifecycle::RemovedComponents,
+    hierarchy::ChildOf,
+    lifecycle::{Insert, RemovedComponents},
+    observer::On,
     prelude::Name,
     query::{Added, Changed, Has, Or, With},
     reflect::ReflectComponent,
@@ -12,21 +14,24 @@ use bevy_ecs::{
     system::{Commands, Query},
 };
 use bevy_input_focus::tab_navigation::TabIndex;
+use bevy_log::info;
 use bevy_picking::{hover::Hovered, PickingSystems};
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_scene2::{bsn, Scene, SceneList};
 use bevy_ui::{
-    px, AlignItems, Display, FlexDirection, InteractionDisabled, JustifyContent, Node, Overflow,
-    PositionType, Selected, UiRect,
+    px, AlignItems, BorderRadius, Display, FlexDirection, InteractionDisabled, JustifyContent,
+    Node, Overflow, PositionType, Selected, UiRect,
 };
-use bevy_ui_widgets::{ControlOrientation, ListBox, ListItem, ScrollArea, Scrollbar};
+use bevy_ui_widgets::{
+    ActiveDescendant, ControlOrientation, ListBox, ListItem, ScrollArea, Scrollbar,
+};
 
 use crate::{
     constants::{fonts, size},
     controls::scrollbar::scrollbar,
     cursor::EntityCursor,
     font_styles::InheritableFont,
-    theme::{ThemeBackgroundColor, ThemeFontColor},
+    theme::{ThemeBackgroundColor, ThemeBorderColor, ThemeFontColor},
     tokens,
 };
 
@@ -86,6 +91,11 @@ pub fn listview<S: SceneList>(children: S) -> impl Scene {
 #[derive(Component, Default, Clone, Reflect)]
 #[reflect(Component, Clone, Default)]
 struct ListRowStyle;
+
+/// Marker for the listrow check mark
+#[derive(Component, Default, Clone, Reflect)]
+#[reflect(Component, Clone, Default)]
+struct ActiveRowOutline;
 
 /// A selectable row in a list of items
 pub fn listrow() -> impl Scene {
@@ -194,12 +204,6 @@ fn set_listrow_styles(
     font_color: &ThemeFontColor,
     commands: &mut Commands,
 ) {
-    // let outline_border_token = match (disabled, hovered) {
-    //     (true, _) => tokens::LISTROW_BORDER_DISABLED,
-    //     (false, true) => tokens::LISTROW_BORDER_HOVER,
-    //     _ => tokens::LISTROW_BORDER,
-    // };
-
     let outline_bg_token = match (disabled, selected, hovered) {
         (false, true, _) => tokens::LISTROW_BG_SELECTED,
         (false, false, true) => tokens::LISTROW_BG_HOVER,
@@ -236,6 +240,45 @@ fn set_listrow_styles(
         .insert(EntityCursor::System(cursor_shape));
 }
 
+fn on_insert_active(
+    add: On<Insert, ActiveDescendant>,
+    q_active_descendant: Query<&ActiveDescendant>,
+    q_row_outline: Query<(Entity, &ChildOf), With<ActiveRowOutline>>,
+    mut commands: Commands,
+) {
+    info!("AD");
+    let listbox = add.entity;
+    let Ok(active_descendant) = q_active_descendant.get(listbox) else {
+        return;
+    };
+
+    // Despawn all active outlines that aren't the current active descendant.
+    for (outline_id, ChildOf(outline_parent)) in q_row_outline.iter() {
+        if !active_descendant.visible || Some(*outline_parent) != active_descendant.item {
+            commands.entity(outline_id).despawn();
+        }
+    }
+
+    if let Some(active_item) = active_descendant.item
+        && active_descendant.visible
+    {
+        commands.entity(active_item).with_child((
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(0),
+                right: px(0),
+                top: px(0),
+                bottom: px(0),
+                border: UiRect::all(px(2)),
+                ..Default::default()
+            },
+            BorderRadius::all(px(2)),
+            ThemeBorderColor(tokens::FOCUS_RING),
+            ActiveRowOutline,
+        ));
+    }
+}
+
 /// Plugin which registers the systems for updating the listrow styles.
 pub struct ListViewPlugin;
 
@@ -245,5 +288,6 @@ impl Plugin for ListViewPlugin {
             PreUpdate,
             (update_listrow_styles, update_listrow_styles_remove).in_set(PickingSystems::Last),
         );
+        app.add_observer(on_insert_active);
     }
 }

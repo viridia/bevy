@@ -2,6 +2,7 @@ use bevy_app::{App, Plugin, PostUpdate};
 use bevy_ecs::{
     component::Component,
     entity::Entity,
+    event::EntityEvent,
     hierarchy::{ChildOf, Children},
     observer::On,
     query::{With, Without},
@@ -10,7 +11,8 @@ use bevy_ecs::{
     template::GetTemplate,
 };
 use bevy_input::mouse::MouseScrollUnit;
-use bevy_math::Vec2;
+use bevy_log::info;
+use bevy_math::{Affine2, Vec2};
 use bevy_picking::events::{Cancel, Drag, DragEnd, DragStart, Pointer, Press, Scroll};
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_ui::{
@@ -79,6 +81,15 @@ pub struct ScrollbarThumb;
 #[require(ScrollPosition)]
 #[reflect(Component)]
 pub struct ScrollArea;
+
+/// An event which indicates that we want to scroll the specified item into view (adjusting
+/// the scroll position of it's parent).
+#[derive(Copy, Clone, Debug, PartialEq, EntityEvent)]
+#[entity_event(propagate)]
+pub struct ScrollIntoView {
+    /// The activated entity.
+    pub entity: Entity,
+}
 
 impl Scrollbar {
     /// Construct a new scrollbar.
@@ -359,6 +370,76 @@ fn scrollarea_on_scroll(
     }
 }
 
+fn on_scroll_into_view(
+    mut scroll: On<ScrollIntoView>,
+    q_node: Query<(&Node, &UiGlobalTransform, &ComputedNode)>,
+    q_parents: Query<&ChildOf>,
+    mut q_scroll_area: Query<&mut ScrollPosition, With<ScrollArea>>,
+) {
+    if let Ok((_target_node, target_transform, target_computed_node)) = q_node.get(scroll.entity) {
+        scroll.propagate(false);
+        let target_affine: Affine2 = target_transform.into();
+        let target_size = target_computed_node.size() * target_computed_node.inverse_scale_factor;
+        let target_pos = target_affine.translation - target_size * 0.5;
+
+        let Some(scroll_area_id) = q_parents
+            .iter_ancestors(scroll.entity)
+            .find(|id| q_scroll_area.contains(*id))
+        else {
+            return;
+        };
+
+        let (scroll_area_node, scroll_area_transform, scroll_area_computed_node) =
+            q_node.get(scroll_area_id).unwrap();
+        let scroll_area_affine: Affine2 = scroll_area_transform.into();
+        let scroll_area_size =
+            scroll_area_computed_node.size() * scroll_area_computed_node.inverse_scale_factor;
+        let scroll_area_pos = scroll_area_affine.translation - scroll_area_size * 0.5;
+
+        // Position of the target relative to the scroll area's top-left (in the same space as sizes).
+        let relative = target_pos - scroll_area_pos;
+        info!("Relative {relative}");
+        let target_local_top_left = relative + (scroll_area_size - target_size) * 0.5;
+        let target_local_bottom_right = target_local_top_left + target_size;
+
+        // Get mutable access to the scroll position and content size info.
+        let Ok(mut scroll_pos) = q_scroll_area.get_mut(scroll_area_id) else {
+            return;
+        };
+        let content_size = scroll_area_computed_node.content_size()
+            * scroll_area_computed_node.inverse_scale_factor;
+        let max_range = (content_size - scroll_area_size).max(Vec2::ZERO);
+
+        let can_scroll_x = scroll_area_node.overflow.x == OverflowAxis::Scroll;
+        let can_scroll_y = scroll_area_node.overflow.y == OverflowAxis::Scroll;
+
+        // Adjust by the minimal amount to make the target fully visible.
+        if can_scroll_x {
+            let view_min = scroll_pos.x;
+            let view_max = scroll_pos.x + scroll_area_size.x;
+
+            if target_local_top_left.x < view_min {
+                scroll_pos.x = target_local_top_left.x.clamp(0.0, max_range.x);
+            } else if target_local_bottom_right.x > view_max {
+                scroll_pos.x =
+                    (target_local_bottom_right.x - scroll_area_size.x).clamp(0.0, max_range.x);
+            }
+        }
+
+        if can_scroll_y {
+            let view_min = scroll_pos.y;
+            let view_max = scroll_pos.y + scroll_area_size.y;
+
+            if target_local_top_left.y < view_min {
+                scroll_pos.y = target_local_top_left.y.clamp(0.0, max_range.y);
+            } else if target_local_bottom_right.y > view_max {
+                scroll_pos.y =
+                    (target_local_bottom_right.y - scroll_area_size.y).clamp(0.0, max_range.y);
+            }
+        }
+    }
+}
+
 /// Plugin that adds the observers for the [`Scrollbar`] widget.
 pub struct ScrollbarPlugin;
 
@@ -370,6 +451,7 @@ impl Plugin for ScrollbarPlugin {
             .add_observer(scrollbar_on_drag_cancel)
             .add_observer(scrollbar_on_drag)
             .add_observer(scrollarea_on_scroll)
+            .add_observer(on_scroll_into_view)
             .add_systems(PostUpdate, update_scrollbar_thumb);
     }
 }
