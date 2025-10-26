@@ -116,6 +116,15 @@ pub fn create_dark_theme() -> ThemeProps {
                 tokens::MENUITEM_TEXT_DISABLED,
                 palette::WHITE.with_alpha(0.5),
             ),
+            // Listview
+            (tokens::LISTROW_BG, Color::NONE),
+            (tokens::LISTROW_BG_HOVER, palette::GRAY_3.with_alpha(0.5)),
+            (tokens::LISTROW_BG_SELECTED, palette::GRAY_3),
+            (tokens::LISTROW_TEXT, palette::WHITE),
+            (
+                tokens::LISTROW_TEXT_DISABLED,
+                palette::WHITE.with_alpha(0.5),
+            ),
             // Pane
             (tokens::PANE_HEADER_BG, palette::GRAY_0),
             (tokens::PANE_HEADER_BORDER, palette::WARM_GRAY_1),

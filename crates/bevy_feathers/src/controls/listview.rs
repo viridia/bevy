@@ -1,20 +1,32 @@
 use accesskit::Role;
 use bevy_a11y::AccessibilityNode;
-use bevy_ecs::prelude::Name;
+use bevy_app::{Plugin, PreUpdate};
+use bevy_ecs::{
+    component::Component,
+    entity::Entity,
+    lifecycle::RemovedComponents,
+    prelude::Name,
+    query::{Added, Changed, Has, Or, With},
+    reflect::ReflectComponent,
+    schedule::IntoScheduleConfigs as _,
+    system::{Commands, Query},
+};
 use bevy_input_focus::tab_navigation::TabIndex;
-use bevy_picking::hover::Hovered;
+use bevy_picking::{hover::Hovered, PickingSystems};
+use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_scene2::{bsn, Scene, SceneList};
 use bevy_ui::{
-    px, AlignItems, Display, FlexDirection, JustifyContent, Node, Overflow, PositionType,
-    ScrollPosition, UiRect,
+    px, AlignItems, Display, FlexDirection, InteractionDisabled, JustifyContent, Node, Overflow,
+    PositionType, Selected, UiRect,
 };
-use bevy_ui_widgets::{ControlOrientation, Scrollbar};
+use bevy_ui_widgets::{ControlOrientation, ListBox, ListItem, ScrollArea, Scrollbar};
 
 use crate::{
     constants::{fonts, size},
     controls::scrollbar::scrollbar,
+    cursor::EntityCursor,
     font_styles::InheritableFont,
-    theme::ThemeFontColor,
+    theme::{ThemeBackgroundColor, ThemeFontColor},
     tokens,
 };
 
@@ -27,7 +39,11 @@ pub fn listview<S: SceneList>(children: S) -> impl Scene {
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Stretch,
             justify_content: JustifyContent::Start,
+            padding: UiRect {
+                right: px(10) // Room for scrollbar
+            }
         }
+        ListBox
         AccessibilityNode(accesskit::Node::new(Role::ListBox))
         TabIndex(0)
         [
@@ -41,7 +57,7 @@ pub fn listview<S: SceneList>(children: S) -> impl Scene {
                     justify_content: JustifyContent::Start,
                     overflow: Overflow::scroll_y(),
                 }
-                ScrollPosition::default()
+                ScrollArea::default()
                 [
                     {children}
                 ]
@@ -66,6 +82,11 @@ pub fn listview<S: SceneList>(children: S) -> impl Scene {
     }
 }
 
+/// Marker for the listrow check mark
+#[derive(Component, Default, Clone, Reflect)]
+#[reflect(Component, Clone, Default)]
+struct ListRowStyle;
+
 /// A selectable row in a list of items
 pub fn listrow() -> impl Scene {
     bsn! {
@@ -79,11 +100,150 @@ pub fn listrow() -> impl Scene {
             padding: UiRect::axes(px(8), px(2)),
         }
         AccessibilityNode(accesskit::Node::new(Role::ListItem))
-        ThemeFontColor(tokens::BUTTON_TEXT)
+        ThemeFontColor(tokens::LISTROW_TEXT)
+        ThemeBackgroundColor(tokens::LISTROW_BG)
         InheritableFont {
             font: fonts::REGULAR,
             font_size: 14.0,
         }
         Hovered
+        ListItem
+        ListRowStyle
+    }
+}
+
+fn update_listrow_styles(
+    q_listrows: Query<
+        (
+            Entity,
+            Has<InteractionDisabled>,
+            Has<Selected>,
+            &Hovered,
+            &ThemeBackgroundColor,
+            &ThemeFontColor,
+        ),
+        (
+            With<ListRowStyle>,
+            Or<(
+                Changed<Hovered>,
+                Added<Selected>,
+                Added<InteractionDisabled>,
+            )>,
+        ),
+    >,
+    // q_children: Query<&Children>,
+    // mut q_outline: Query<(&ThemeBackgroundColor, &ThemeBorderColor), With<ListRowOutline>>,
+    // mut q_mark: Query<&ThemeBorderColor, With<ListRowMark>>,
+    mut commands: Commands,
+) {
+    for (listrow_ent, disabled, selected, hovered, bg_color, font_color) in q_listrows.iter() {
+        set_listrow_styles(
+            listrow_ent,
+            disabled,
+            selected,
+            hovered.0,
+            bg_color,
+            font_color,
+            &mut commands,
+        );
+    }
+}
+
+fn update_listrow_styles_remove(
+    q_listrows: Query<
+        (
+            Entity,
+            Has<InteractionDisabled>,
+            Has<Selected>,
+            &Hovered,
+            &ThemeBackgroundColor,
+            &ThemeFontColor,
+        ),
+        With<ListRowStyle>,
+    >,
+    mut removed_disabled: RemovedComponents<InteractionDisabled>,
+    mut removed_selected: RemovedComponents<Selected>,
+    mut commands: Commands,
+) {
+    removed_disabled
+        .read()
+        .chain(removed_selected.read())
+        .for_each(|ent| {
+            if let Ok((listrow_ent, disabled, selected, hovered, bg_color, font_color)) =
+                q_listrows.get(ent)
+            {
+                set_listrow_styles(
+                    listrow_ent,
+                    disabled,
+                    selected,
+                    hovered.0,
+                    bg_color,
+                    font_color,
+                    &mut commands,
+                );
+            }
+        });
+}
+
+fn set_listrow_styles(
+    listrow_ent: Entity,
+    disabled: bool,
+    selected: bool,
+    hovered: bool,
+    bg_color: &ThemeBackgroundColor,
+    font_color: &ThemeFontColor,
+    commands: &mut Commands,
+) {
+    // let outline_border_token = match (disabled, hovered) {
+    //     (true, _) => tokens::LISTROW_BORDER_DISABLED,
+    //     (false, true) => tokens::LISTROW_BORDER_HOVER,
+    //     _ => tokens::LISTROW_BORDER,
+    // };
+
+    let outline_bg_token = match (disabled, selected, hovered) {
+        (false, true, _) => tokens::LISTROW_BG_SELECTED,
+        (false, false, true) => tokens::LISTROW_BG_HOVER,
+        _ => tokens::LISTROW_BG,
+    };
+
+    let font_color_token = match disabled {
+        true => tokens::LISTROW_TEXT_DISABLED,
+        false => tokens::LISTROW_TEXT,
+    };
+
+    let cursor_shape = match disabled {
+        true => bevy_window::SystemCursorIcon::NotAllowed,
+        false => bevy_window::SystemCursorIcon::Pointer,
+    };
+
+    // Change outline background
+    if bg_color.0 != outline_bg_token {
+        commands
+            .entity(listrow_ent)
+            .insert(ThemeBackgroundColor(outline_bg_token));
+    }
+
+    // Change font color
+    if font_color.0 != font_color_token {
+        commands
+            .entity(listrow_ent)
+            .insert(ThemeFontColor(font_color_token));
+    }
+
+    // Change cursor shape
+    commands
+        .entity(listrow_ent)
+        .insert(EntityCursor::System(cursor_shape));
+}
+
+/// Plugin which registers the systems for updating the listrow styles.
+pub struct ListViewPlugin;
+
+impl Plugin for ListViewPlugin {
+    fn build(&self, app: &mut bevy_app::App) {
+        app.add_systems(
+            PreUpdate,
+            (update_listrow_styles, update_listrow_styles_remove).in_set(PickingSystems::Last),
+        );
     }
 }

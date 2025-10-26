@@ -15,7 +15,7 @@ use bevy_input::ButtonState;
 use bevy_input_focus::FocusedInput;
 use bevy_picking::events::{Click, Pointer};
 use bevy_reflect::Reflect;
-use bevy_ui::{Checked, InteractionDisabled, Selectable};
+use bevy_ui::{InteractionDisabled, Selectable, Selected};
 
 use crate::ValueChange;
 
@@ -40,7 +40,7 @@ pub struct ListItem;
 fn listbox_on_key_input(
     mut ev: On<FocusedInput<KeyboardInput>>,
     q_listbox: Query<(), With<ListBox>>,
-    q_listitems: Query<(Has<Checked>, Has<InteractionDisabled>), With<ListItem>>,
+    q_listitems: Query<(Has<Selected>, Has<InteractionDisabled>), With<ListItem>>,
     q_children: Query<&Children>,
     mut commands: Commands,
 ) {
@@ -61,7 +61,7 @@ fn listbox_on_key_input(
             let key_code = event.key_code;
             ev.propagate(false);
 
-            // Find all radio descendants that are not disabled
+            // Find all listbox descendants that are not disabled
             let list_items = q_children
                 .iter_descendants(ev.focused_entity)
                 .filter_map(|child_id| match q_listitems.get(child_id) {
@@ -70,7 +70,7 @@ fn listbox_on_key_input(
                 })
                 .collect::<Vec<_>>();
             if list_items.is_empty() {
-                return; // No enabled radio buttons in the group
+                return; // No enabled rows in the group
             }
             let current_index = list_items
                 .iter()
@@ -79,7 +79,7 @@ fn listbox_on_key_input(
 
             let next_index = match key_code {
                 KeyCode::ArrowUp | KeyCode::ArrowLeft => {
-                    // Navigate to the previous radio button in the group
+                    // Navigate to the previous list row in the group
                     if current_index == 0 || current_index >= list_items.len() {
                         // If we're at the first one, wrap around to the last
                         list_items.len() - 1
@@ -89,7 +89,7 @@ fn listbox_on_key_input(
                     }
                 }
                 KeyCode::ArrowDown | KeyCode::ArrowRight => {
-                    // Navigate to the next radio button in the group
+                    // Navigate to the next list row in the group
                     if current_index >= list_items.len() - 1 {
                         // If we're at the last one, wrap around to the first
                         0
@@ -99,11 +99,11 @@ fn listbox_on_key_input(
                     }
                 }
                 KeyCode::Home => {
-                    // Navigate to the first radio button in the group
+                    // Navigate to the first list row in the group
                     0
                 }
                 KeyCode::End => {
-                    // Navigate to the last radio button in the group
+                    // Navigate to the last list row in the group
                     list_items.len() - 1
                 }
                 _ => {
@@ -118,7 +118,7 @@ fn listbox_on_key_input(
 
             let (next_id, _) = list_items[next_index];
 
-            // Trigger the on_change event for the newly checked radio button
+            // Trigger the on_change event for the newly selected row
             commands.trigger(ValueChange::<Entity> {
                 source: ev.focused_entity,
                 value: next_id,
@@ -130,79 +130,152 @@ fn listbox_on_key_input(
 fn listbox_on_row_click(
     mut ev: On<Pointer<Click>>,
     q_listbox: Query<(), With<ListBox>>,
-    q_listitems: Query<(Has<Checked>, Has<InteractionDisabled>), With<ListItem>>,
+    q_listitems: Query<(Has<Selected>, Has<InteractionDisabled>), With<ListItem>>,
     q_parents: Query<&ChildOf>,
     q_children: Query<&Children>,
     mut commands: Commands,
 ) {
     if q_listbox.contains(ev.entity) {
-        // Starting with the original target, search upward for a radio button.
-        let radio_id = if q_listitems.contains(ev.original_event_target()) {
+        // Starting with the original target, search upward for a list row.
+        let row_id = if q_listitems.contains(ev.original_event_target()) {
             ev.original_event_target()
         } else {
-            // Search ancestors for the first radio button
-            let mut found_radio = None;
+            // Search ancestors for the first list row
+            let mut found_row = None;
             for ancestor in q_parents.iter_ancestors(ev.original_event_target()) {
                 if q_listbox.contains(ancestor) {
-                    // We reached a radio group before finding a radio button, bail out
+                    // We reached a list box before finding a list row, bail out
                     return;
                 }
                 if q_listitems.contains(ancestor) {
-                    found_radio = Some(ancestor);
+                    found_row = Some(ancestor);
                     break;
                 }
             }
 
-            match found_radio {
-                Some(radio) => radio,
-                None => return, // No radio button found in the ancestor chain
+            match found_row {
+                Some(row) => row,
+                None => return, // No list row found in the ancestor chain
             }
         };
 
-        // Radio button is disabled.
-        if q_listitems.get(radio_id).unwrap().1 {
+        // List row is disabled.
+        if q_listitems.get(row_id).unwrap().1 {
             return;
         }
 
-        // Gather all the enabled radio group descendants for exclusion.
-        let radio_buttons = q_children
+        // Gather all the enabled list box descendants for exclusion.
+        let all_rows = q_children
             .iter_descendants(ev.entity)
             .filter_map(|child_id| match q_listitems.get(child_id) {
-                Ok((checked, false)) => Some((child_id, checked)),
+                Ok((selected, false)) => Some((child_id, selected)),
                 Ok((_, true)) | Err(_) => None,
             })
             .collect::<Vec<_>>();
 
-        if radio_buttons.is_empty() {
-            return; // No enabled radio buttons in the group
+        if all_rows.is_empty() {
+            return; // No enabled list rows in the group
         }
 
-        // Pick out the radio button that is currently checked.
+        // Pick out the list row that is currently checked.
         ev.propagate(false);
-        let current_radio = radio_buttons
+        let current_row = all_rows
             .iter()
             .find(|(_, checked)| *checked)
             .map(|(id, _)| *id);
 
-        if current_radio == Some(radio_id) {
-            // If they clicked the currently checked radio button, do nothing
+        if current_row == Some(row_id) {
+            // If they clicked the currently checked list row, do nothing
             return;
         }
 
-        // Trigger the on_change event for the newly checked radio button
+        // Trigger the on_change event for the newly checked list row
         commands.trigger(ValueChange::<Entity> {
             source: ev.entity,
-            value: radio_id,
+            value: row_id,
         });
     }
 }
 
-/// Plugin that adds the observers for the [`RadioGroup`] widget.
-pub struct ListBoxGroupPlugin;
+/// Plugin that adds the observers for the [`ListBox`] widget.
+pub struct ListBoxPlugin;
 
-impl Plugin for ListBoxGroupPlugin {
+impl Plugin for ListBoxPlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(listbox_on_key_input)
             .add_observer(listbox_on_row_click);
+    }
+}
+
+/// Observer function for updating list row selection state.
+pub fn listbox_update_selection(
+    value_change: On<ValueChange<Entity>>,
+    q_listbox: Query<(), With<ListBox>>,
+    q_listitems: Query<(Has<Selected>, Has<InteractionDisabled>), With<ListItem>>,
+    q_parents: Query<&ChildOf>,
+    q_children: Query<&Children>,
+    mut commands: Commands,
+) {
+    {
+        let change = value_change.event();
+        let row = change.value;
+
+        // Find the ListBox that this change applies to. Prefer the event source if it's a ListBox,
+        // otherwise walk the ancestors of the row to find the containing ListBox.
+        let listbox = if q_listbox.contains(change.source) {
+            change.source
+        } else {
+            // requires: q_parents: Query<&ChildOf>
+            let mut found = None;
+            for ancestor in q_parents.iter_ancestors(row) {
+                if q_listbox.contains(ancestor) {
+                    found = Some(ancestor);
+                    break;
+                }
+            }
+            match found {
+                Some(lb) => lb,
+                None => return, // no containing ListBox found
+            }
+        };
+
+        // Gather all enabled list items that are descendants of the found ListBox.
+        // requires: q_children: Query<&Children>
+        let enabled_rows = q_children
+            .iter_descendants(listbox)
+            .filter_map(|child_id| match q_listitems.get(child_id) {
+                Ok((has_selected, false)) => Some((child_id, has_selected)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        if enabled_rows.is_empty() {
+            return;
+        }
+
+        // If the changed row isn't one of the enabled rows in this listbox, ignore.
+        if !enabled_rows.iter().any(|(id, _)| *id == row) {
+            return;
+        }
+
+        // Determine currently selected row (if any).
+        let current_selected = enabled_rows
+            .iter()
+            .find(|(_, checked)| *checked)
+            .map(|(id, _)| *id);
+
+        // If the selection hasn't changed, do nothing.
+        if current_selected == Some(row) {
+            return;
+        }
+
+        // Update Selected component: insert for the new row, remove for others.
+        for (id, _) in enabled_rows {
+            if id == row {
+                commands.entity(id).insert(Selected);
+            } else {
+                commands.entity(id).remove::<Selected>();
+            }
+        }
     }
 }

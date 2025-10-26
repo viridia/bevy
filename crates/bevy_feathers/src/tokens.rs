@@ -178,6 +178,20 @@ pub const MENUITEM_TEXT: ThemeToken = ThemeToken::new_static("feathers.menuitem.
 pub const MENUITEM_TEXT_DISABLED: ThemeToken =
     ThemeToken::new_static("feathers.menuitem.text.disabled");
 
+// Listview
+
+/// Listview row background
+pub const LISTROW_BG: ThemeToken = ThemeToken::new_static("feathers.listrow.bg");
+/// Listview row background (hovered)
+pub const LISTROW_BG_HOVER: ThemeToken = ThemeToken::new_static("feathers.listrow.bg.hover");
+/// Listview row background (selected)
+pub const LISTROW_BG_SELECTED: ThemeToken = ThemeToken::new_static("feathers.listrow.bg.selected");
+/// Listview row text
+pub const LISTROW_TEXT: ThemeToken = ThemeToken::new_static("feathers.listrow.text");
+/// Listview row text (disabled)
+pub const LISTROW_TEXT_DISABLED: ThemeToken =
+    ThemeToken::new_static("feathers.listrow.text.disabled");
+
 // Pane
 
 /// Pane header background

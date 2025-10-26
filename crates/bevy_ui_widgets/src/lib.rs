@@ -30,6 +30,7 @@ mod slider;
 
 pub use button::*;
 pub use checkbox::*;
+pub use list::*;
 pub use menu::*;
 pub use observe::*;
 pub use radio::*;
@@ -51,6 +52,7 @@ impl PluginGroup for UiWidgetsPlugins {
             .add(PopoverPlugin)
             .add(ButtonPlugin)
             .add(CheckboxPlugin)
+            .add(ListBoxPlugin)
             .add(MenuPlugin)
             .add(RadioGroupPlugin)
             .add(ScrollbarPlugin)

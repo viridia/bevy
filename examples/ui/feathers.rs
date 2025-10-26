@@ -23,10 +23,10 @@ use bevy::{
     input_focus::tab_navigation::TabGroup,
     prelude::*,
     scene2::prelude::{Scene, *},
-    ui::{Checked, InteractionDisabled},
+    ui::{Checked, InteractionDisabled, Selected},
     ui_widgets::{
-        checkbox_self_update, slider_self_update, Activate, RadioButton, RadioGroup,
-        SliderPrecision, SliderStep, SliderValue, ValueChange,
+        checkbox_self_update, listbox_update_selection, slider_self_update, Activate, RadioButton,
+        RadioGroup, SliderPrecision, SliderStep, SliderValue, ValueChange,
     },
 };
 
@@ -425,9 +425,9 @@ fn demo_root() -> impl Scene {
                             :listview(
                                 bsn_list! [
                                     :listrow [(Text("First World") ThemedText)],
-                                    :listrow [(Text("Second Nature") ThemedText)],
+                                    :listrow Selected::default() [(Text("Second Nature") ThemedText)],
                                     :listrow [(Text("Third Degree") ThemedText)],
-                                    :listrow [(Text("Fourth Wall") ThemedText)],
+                                    :listrow InteractionDisabled::default() [(Text("Fourth Wall") ThemedText)],
                                     :listrow [(Text("Fifth Column") ThemedText)],
                                     :listrow [(Text("Sixth Sense") ThemedText)],
                                     :listrow [(Text("Seventh Heaven") ThemedText)],
@@ -441,6 +441,7 @@ fn demo_root() -> impl Scene {
                             Node {
                                 max_height: px(130)
                             }
+                            on(listbox_update_selection)
                         ],
                     ]
                 ),

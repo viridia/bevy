@@ -36,6 +36,7 @@ impl Plugin for ControlsPlugin {
             ButtonPlugin,
             CheckboxPlugin,
             ColorSliderPlugin,
+            ListViewPlugin,
             MenuPlugin,
             RadioPlugin,
             ScrollbarPlugin,
