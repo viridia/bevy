@@ -2,6 +2,7 @@ use accesskit::Role;
 use bevy_a11y::AccessibilityNode;
 use bevy_app::{App, Plugin, PreUpdate};
 use bevy_ecs::{
+    change_detection::DetectChanges,
     component::Component,
     entity::Entity,
     hierarchy::{ChildOf, Children},
@@ -256,35 +257,37 @@ fn update_active_descendant(
     q_children: Query<&Children>,
     mut commands: Commands,
 ) {
-    for (listbox, active_descendant) in q_listbox {
-        if Some(listbox) == focus.0 {
-            // If the listbox is focused, make sure we have an active descendant
-            if active_descendant.0.is_none() {
-                // Find all listbox descendants that are not disabled
-                let list_items = q_children
-                    .iter_descendants(listbox)
-                    .filter_map(|child_id| match q_listitems.get(child_id) {
-                        Ok((selected, false)) => Some((child_id, selected)),
-                        Ok((_, true)) | Err(_) => None,
-                    })
-                    .collect::<Vec<_>>();
-                if list_items.is_empty() {
-                    continue; // No enabled rows in the group
+    if focus.is_changed() {
+        for (listbox, active_descendant) in q_listbox {
+            if Some(listbox) == focus.0 {
+                // If the listbox is focused, make sure we have an active descendant
+                if active_descendant.0.is_none() {
+                    // Find all listbox descendants that are not disabled
+                    let list_items = q_children
+                        .iter_descendants(listbox)
+                        .filter_map(|child_id| match q_listitems.get(child_id) {
+                            Ok((selected, false)) => Some((child_id, selected)),
+                            Ok((_, true)) | Err(_) => None,
+                        })
+                        .collect::<Vec<_>>();
+                    if list_items.is_empty() {
+                        continue; // No enabled rows in the group
+                    }
+
+                    // Prefer the current active descendant if it exists, otherwise first element
+                    let first_selected = list_items
+                        .iter()
+                        .position(|(_, selected)| *selected)
+                        .unwrap_or(0);
+
+                    commands
+                        .entity(listbox)
+                        .insert(ActiveDescendant(Some(list_items[first_selected].0)));
                 }
-
-                // Prefer the current active descendant if it exists, otherwise first element
-                let first_selected = list_items
-                    .iter()
-                    .position(|(_, selected)| *selected)
-                    .unwrap_or(0);
-
-                commands
-                    .entity(listbox)
-                    .insert(ActiveDescendant(Some(list_items[first_selected].0)));
+            } else if active_descendant.0.is_some() {
+                // Listbox is not focused, clear active descendant
+                commands.entity(listbox).insert(ActiveDescendant::default());
             }
-        } else if active_descendant.0.is_some() {
-            // Listbox is not focused, clear active descendant
-            commands.entity(listbox).insert(ActiveDescendant::default());
         }
     }
 }
