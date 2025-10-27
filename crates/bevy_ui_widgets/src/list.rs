@@ -1,6 +1,6 @@
 use accesskit::Role;
 use bevy_a11y::AccessibilityNode;
-use bevy_app::{App, Plugin};
+use bevy_app::{App, Plugin, PreUpdate};
 use bevy_ecs::{
     component::Component,
     entity::Entity,
@@ -8,12 +8,16 @@ use bevy_ecs::{
     observer::On,
     query::{Has, With},
     reflect::ReflectComponent,
-    system::{Commands, Query, ResMut},
+    schedule::IntoScheduleConfigs,
+    system::{Commands, Query, Res, ResMut},
 };
 use bevy_input::keyboard::{KeyCode, KeyboardInput};
 use bevy_input::ButtonState;
-use bevy_input_focus::{FocusedInput, InputFocusVisible};
-use bevy_picking::events::{Click, Pointer};
+use bevy_input_focus::{FocusedInput, InputFocus, InputFocusVisible};
+use bevy_picking::{
+    events::{Click, Pointer},
+    PickingSystems,
+};
 use bevy_reflect::Reflect;
 use bevy_ui::{InteractionDisabled, Selectable, Selected};
 
@@ -89,8 +93,8 @@ fn listbox_on_key_input(
             let list_items = q_children
                 .iter_descendants(listbox)
                 .filter_map(|child_id| match q_listitems.get(child_id) {
-                    Ok((selected, false)) => Some((child_id, selected)),
-                    Ok((_, true)) | Err(_) => None,
+                    Ok((selected, disabled)) => Some((child_id, selected, disabled)),
+                    Err(_) => None,
                 })
                 .collect::<Vec<_>>();
             if list_items.is_empty() {
@@ -100,10 +104,10 @@ fn listbox_on_key_input(
             // Prefer the current active descendant if it exists
             let prev_active = list_items
                 .iter()
-                .position(|(id, _)| Some(*id) == active_descendant.0)
+                .position(|(id, _, _)| Some(*id) == active_descendant.0)
                 .or_else(|| {
                     // Fallback to the first selected row if the active descendant isn't in list_items
-                    list_items.iter().position(|(_, selected)| *selected)
+                    list_items.iter().position(|(_, selected, _)| *selected)
                 })
                 .unwrap_or(usize::MAX);
 
@@ -140,8 +144,8 @@ fn listbox_on_key_input(
                 KeyCode::Space | KeyCode::Enter => {
                     // Toggle selected state of active row
                     if prev_active < list_items.len() {
-                        let (active_id, selected) = list_items[prev_active];
-                        if !selected {
+                        let (active_id, selected, disabled) = list_items[prev_active];
+                        if !selected && !disabled {
                             commands.trigger(ValueChange::<Entity> {
                                 source: listbox,
                                 value: active_id,
@@ -162,7 +166,7 @@ fn listbox_on_key_input(
             }
 
             // Change active descendant
-            let (next_id, _) = list_items[next_active];
+            let (next_id, _, _) = list_items[next_active];
             focus_visible.0 = true;
             commands
                 .entity(listbox)
@@ -244,6 +248,47 @@ fn listbox_on_row_click(
     }
 }
 
+/// Update the active descendant on focus changes
+fn update_active_descendant(
+    focus: Res<InputFocus>,
+    q_listbox: Query<(Entity, &ActiveDescendant), With<ListBox>>,
+    q_listitems: Query<(Has<Selected>, Has<InteractionDisabled>), With<ListItem>>,
+    q_children: Query<&Children>,
+    mut commands: Commands,
+) {
+    for (listbox, active_descendant) in q_listbox {
+        if Some(listbox) == focus.0 {
+            // If the listbox is focused, make sure we have an active descendant
+            if active_descendant.0.is_none() {
+                // Find all listbox descendants that are not disabled
+                let list_items = q_children
+                    .iter_descendants(listbox)
+                    .filter_map(|child_id| match q_listitems.get(child_id) {
+                        Ok((selected, false)) => Some((child_id, selected)),
+                        Ok((_, true)) | Err(_) => None,
+                    })
+                    .collect::<Vec<_>>();
+                if list_items.is_empty() {
+                    continue; // No enabled rows in the group
+                }
+
+                // Prefer the current active descendant if it exists, otherwise first element
+                let first_selected = list_items
+                    .iter()
+                    .position(|(_, selected)| *selected)
+                    .unwrap_or(0);
+
+                commands
+                    .entity(listbox)
+                    .insert(ActiveDescendant(Some(list_items[first_selected].0)));
+            }
+        } else if active_descendant.0.is_some() {
+            // Listbox is not focused, clear active descendant
+            commands.entity(listbox).insert(ActiveDescendant::default());
+        }
+    }
+}
+
 /// Plugin that adds the observers for the [`ListBox`] widget.
 pub struct ListBoxPlugin;
 
@@ -251,6 +296,10 @@ impl Plugin for ListBoxPlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(listbox_on_key_input)
             .add_observer(listbox_on_row_click);
+        app.add_systems(
+            PreUpdate,
+            update_active_descendant.in_set(PickingSystems::Last),
+        );
     }
 }
 
