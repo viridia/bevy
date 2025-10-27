@@ -1,20 +1,19 @@
 use accesskit::Role;
 use bevy_a11y::AccessibilityNode;
-use bevy_app::{Plugin, PreUpdate};
+use bevy_app::{Plugin, PostUpdate, PreUpdate};
 use bevy_ecs::{
+    change_detection::DetectChanges,
     component::Component,
     entity::Entity,
     hierarchy::ChildOf,
-    lifecycle::{Insert, RemovedComponents},
-    observer::On,
+    lifecycle::RemovedComponents,
     prelude::Name,
     query::{Added, Changed, Has, Or, With},
     reflect::ReflectComponent,
     schedule::IntoScheduleConfigs as _,
-    system::{Commands, Query},
+    system::{Commands, Query, Res},
 };
-use bevy_input_focus::tab_navigation::TabIndex;
-use bevy_log::info;
+use bevy_input_focus::{tab_navigation::TabIndex, InputFocus, InputFocusVisible};
 use bevy_picking::{hover::Hovered, PickingSystems};
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_scene2::{bsn, Scene, SceneList};
@@ -141,9 +140,6 @@ fn update_listrow_styles(
             )>,
         ),
     >,
-    // q_children: Query<&Children>,
-    // mut q_outline: Query<(&ThemeBackgroundColor, &ThemeBorderColor), With<ListRowOutline>>,
-    // mut q_mark: Query<&ThemeBorderColor, With<ListRowMark>>,
     mut commands: Commands,
 ) {
     for (listrow_ent, disabled, selected, hovered, bg_color, font_color) in q_listrows.iter() {
@@ -240,27 +236,54 @@ fn set_listrow_styles(
         .insert(EntityCursor::System(cursor_shape));
 }
 
-fn on_insert_active(
-    add: On<Insert, ActiveDescendant>,
-    q_active_descendant: Query<&ActiveDescendant>,
+fn on_change_focus(
+    focus: Res<InputFocus>,
+    focus_visible: Res<InputFocusVisible>,
+    q_listbox: Query<&ActiveDescendant, With<ListBox>>,
     q_row_outline: Query<(Entity, &ChildOf), With<ActiveRowOutline>>,
     mut commands: Commands,
 ) {
-    info!("AD");
-    let listbox = add.entity;
-    let Ok(active_descendant) = q_active_descendant.get(listbox) else {
-        return;
-    };
+    if focus.is_changed() || focus_visible.is_changed() {
+        if let Some(focus_entity) = focus.0
+            && let Ok(active_descendant) = q_listbox.get(focus_entity)
+        {
+            // Highlight the active descendant of the current focused listbox, clear all others.
+            // TODO: Set active descendant if not set.
+            highlight_active(
+                &q_row_outline,
+                &mut commands,
+                active_descendant.0,
+                focus_visible.0,
+            );
+        } else {
+            // Clear all highlights
+            highlight_active(&q_row_outline, &mut commands, None, focus_visible.0);
+        }
+    }
+}
 
+fn highlight_active(
+    q_row_outline: &Query<'_, '_, (Entity, &ChildOf), With<ActiveRowOutline>>,
+    commands: &mut Commands<'_, '_>,
+    active_row: Option<Entity>,
+    show_highlight: bool,
+) {
     // Despawn all active outlines that aren't the current active descendant.
+    let mut needs_spawn = show_highlight;
     for (outline_id, ChildOf(outline_parent)) in q_row_outline.iter() {
-        if !active_descendant.visible || Some(*outline_parent) != active_descendant.item {
+        let is_active = Some(*outline_parent) == active_row;
+        if is_active && show_highlight {
+            // If we already have a highlight for the active element, then do nothing.
+            needs_spawn = false;
+        } else if !is_active || !show_highlight {
+            // If this isn't the active highlight, or we are not showing highlights, then
+            // despawn any highlight entities.
             commands.entity(outline_id).despawn();
         }
     }
 
-    if let Some(active_item) = active_descendant.item
-        && active_descendant.visible
+    if let Some(active_item) = active_row
+        && needs_spawn
     {
         commands.entity(active_item).with_child((
             Node {
@@ -272,7 +295,7 @@ fn on_insert_active(
                 border: UiRect::all(px(2)),
                 ..Default::default()
             },
-            BorderRadius::all(px(2)),
+            BorderRadius::all(px(3)),
             ThemeBorderColor(tokens::FOCUS_RING),
             ActiveRowOutline,
         ));
@@ -288,6 +311,6 @@ impl Plugin for ListViewPlugin {
             PreUpdate,
             (update_listrow_styles, update_listrow_styles_remove).in_set(PickingSystems::Last),
         );
-        app.add_observer(on_insert_active);
+        app.add_systems(PostUpdate, on_change_focus);
     }
 }

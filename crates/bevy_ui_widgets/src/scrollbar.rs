@@ -11,7 +11,6 @@ use bevy_ecs::{
     template::GetTemplate,
 };
 use bevy_input::mouse::MouseScrollUnit;
-use bevy_log::info;
 use bevy_math::{Affine2, Vec2};
 use bevy_picking::events::{Cancel, Drag, DragEnd, DragStart, Pointer, Press, Scroll};
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
@@ -380,7 +379,8 @@ fn on_scroll_into_view(
         scroll.propagate(false);
         let target_affine: Affine2 = target_transform.into();
         let target_size = target_computed_node.size() * target_computed_node.inverse_scale_factor;
-        let target_pos = target_affine.translation - target_size * 0.5;
+        let target_pos = target_affine.translation * target_computed_node.inverse_scale_factor
+            - target_size * 0.5;
 
         let Some(scroll_area_id) = q_parents
             .iter_ancestors(scroll.entity)
@@ -394,18 +394,19 @@ fn on_scroll_into_view(
         let scroll_area_affine: Affine2 = scroll_area_transform.into();
         let scroll_area_size =
             scroll_area_computed_node.size() * scroll_area_computed_node.inverse_scale_factor;
-        let scroll_area_pos = scroll_area_affine.translation - scroll_area_size * 0.5;
-
-        // Position of the target relative to the scroll area's top-left (in the same space as sizes).
-        let relative = target_pos - scroll_area_pos;
-        info!("Relative {relative}");
-        let target_local_top_left = relative + (scroll_area_size - target_size) * 0.5;
-        let target_local_bottom_right = target_local_top_left + target_size;
+        let scroll_area_pos = scroll_area_affine.translation
+            * scroll_area_computed_node.inverse_scale_factor
+            - scroll_area_size * 0.5;
 
         // Get mutable access to the scroll position and content size info.
         let Ok(mut scroll_pos) = q_scroll_area.get_mut(scroll_area_id) else {
             return;
         };
+
+        // Position of the target relative to the scroll area's top-left.
+        let target_local_top_left = target_pos - scroll_area_pos + scroll_pos.0;
+        let target_local_bottom_right = target_local_top_left + target_size;
+
         let content_size = scroll_area_computed_node.content_size()
             * scroll_area_computed_node.inverse_scale_factor;
         let max_range = (content_size - scroll_area_size).max(Vec2::ZERO);

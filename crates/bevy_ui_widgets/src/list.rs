@@ -8,12 +8,11 @@ use bevy_ecs::{
     observer::On,
     query::{Has, With},
     reflect::ReflectComponent,
-    system::{Commands, Query},
+    system::{Commands, Query, ResMut},
 };
 use bevy_input::keyboard::{KeyCode, KeyboardInput};
 use bevy_input::ButtonState;
-use bevy_input_focus::FocusedInput;
-use bevy_log::info;
+use bevy_input_focus::{FocusedInput, InputFocusVisible};
 use bevy_picking::events::{Click, Pointer};
 use bevy_reflect::Reflect;
 use bevy_ui::{InteractionDisabled, Selectable, Selected};
@@ -50,19 +49,10 @@ pub struct ListItem;
 #[derive(Component, Debug, Clone, Default, Reflect)]
 #[reflect(Component)]
 #[component(immutable)]
-pub struct ActiveDescendant {
-    /// The current active descendant, if any.
-    pub item: Option<Entity>,
-    /// Whether the active descendant outline should be visible. It should be hidden
-    /// whenever `focus_visible` is false or the container does not have focus.
-    pub visible: bool,
-}
+pub struct ActiveDescendant(pub Option<Entity>);
 
 // TODO:
 // * Scroll into view when keyboard navigating
-// * Remove ActiveRow when not focused
-// * Remove ActiveRow when focus not visible
-// * Make focus visible on keyboard nav
 
 fn listbox_on_key_input(
     mut ev: On<FocusedInput<KeyboardInput>>,
@@ -70,6 +60,7 @@ fn listbox_on_key_input(
     q_listitems: Query<(Has<Selected>, Has<InteractionDisabled>), With<ListItem>>,
     q_children: Query<&Children>,
     mut commands: Commands,
+    mut focus_visible: ResMut<InputFocusVisible>,
 ) {
     if q_listbox.contains(ev.focused_entity) {
         let listbox = ev.focused_entity;
@@ -109,7 +100,7 @@ fn listbox_on_key_input(
             // Prefer the current active descendant if it exists
             let prev_active = list_items
                 .iter()
-                .position(|(id, _)| Some(*id) == active_descendant.item)
+                .position(|(id, _)| Some(*id) == active_descendant.0)
                 .or_else(|| {
                     // Fallback to the first selected row if the active descendant isn't in list_items
                     list_items.iter().position(|(_, selected)| *selected)
@@ -172,11 +163,10 @@ fn listbox_on_key_input(
 
             // Change active descendant
             let (next_id, _) = list_items[next_active];
-            info!("Next active: {next_active} {next_id}");
-            commands.entity(listbox).insert(ActiveDescendant {
-                item: Some(next_id),
-                visible: true,
-            });
+            focus_visible.0 = true;
+            commands
+                .entity(listbox)
+                .insert(ActiveDescendant(Some(next_id)));
 
             // Scroll active descendant into view
             commands.trigger(ScrollIntoView { entity: next_id });
