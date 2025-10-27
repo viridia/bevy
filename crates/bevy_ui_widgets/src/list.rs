@@ -9,7 +9,7 @@ use bevy_ecs::{
     observer::On,
     query::{Has, With},
     reflect::ReflectComponent,
-    schedule::IntoScheduleConfigs,
+    schedule::{common_conditions::resource_changed, IntoScheduleConfigs},
     system::{Commands, Query, Res, ResMut},
 };
 use bevy_input::keyboard::{KeyCode, KeyboardInput};
@@ -257,37 +257,35 @@ fn update_active_descendant(
     q_children: Query<&Children>,
     mut commands: Commands,
 ) {
-    if focus.is_changed() {
-        for (listbox, active_descendant) in q_listbox {
-            if Some(listbox) == focus.0 {
-                // If the listbox is focused, make sure we have an active descendant
-                if active_descendant.0.is_none() {
-                    // Find all listbox descendants that are not disabled
-                    let list_items = q_children
-                        .iter_descendants(listbox)
-                        .filter_map(|child_id| match q_listitems.get(child_id) {
-                            Ok((selected, false)) => Some((child_id, selected)),
-                            Ok((_, true)) | Err(_) => None,
-                        })
-                        .collect::<Vec<_>>();
-                    if list_items.is_empty() {
-                        continue; // No enabled rows in the group
-                    }
-
-                    // Prefer the current active descendant if it exists, otherwise first element
-                    let first_selected = list_items
-                        .iter()
-                        .position(|(_, selected)| *selected)
-                        .unwrap_or(0);
-
-                    commands
-                        .entity(listbox)
-                        .insert(ActiveDescendant(Some(list_items[first_selected].0)));
+    for (listbox, active_descendant) in q_listbox {
+        if Some(listbox) == focus.0 {
+            // If the listbox is focused, make sure we have an active descendant
+            if active_descendant.0.is_none() {
+                // Find all listbox descendants that are not disabled
+                let list_items = q_children
+                    .iter_descendants(listbox)
+                    .filter_map(|child_id| match q_listitems.get(child_id) {
+                        Ok((selected, false)) => Some((child_id, selected)),
+                        Ok((_, true)) | Err(_) => None,
+                    })
+                    .collect::<Vec<_>>();
+                if list_items.is_empty() {
+                    continue; // No enabled rows in the group
                 }
-            } else if active_descendant.0.is_some() {
-                // Listbox is not focused, clear active descendant
-                commands.entity(listbox).insert(ActiveDescendant::default());
+
+                // Prefer the current active descendant if it exists, otherwise first element
+                let first_selected = list_items
+                    .iter()
+                    .position(|(_, selected)| *selected)
+                    .unwrap_or(0);
+
+                commands
+                    .entity(listbox)
+                    .insert(ActiveDescendant(Some(list_items[first_selected].0)));
             }
+        } else if active_descendant.0.is_some() {
+            // Listbox is not focused, clear active descendant
+            commands.entity(listbox).insert(ActiveDescendant::default());
         }
     }
 }
@@ -301,7 +299,9 @@ impl Plugin for ListBoxPlugin {
             .add_observer(listbox_on_row_click);
         app.add_systems(
             PreUpdate,
-            update_active_descendant.in_set(PickingSystems::Last),
+            update_active_descendant
+                .run_if(resource_changed::<InputFocus>)
+                .in_set(PickingSystems::Last),
         );
     }
 }
