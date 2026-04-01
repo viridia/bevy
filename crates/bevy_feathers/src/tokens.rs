@@ -51,6 +51,20 @@ pub const BUTTON_PRIMARY_TEXT: ThemeToken = ThemeToken::new_static("feathers.but
 pub const BUTTON_PRIMARY_TEXT_DISABLED: ThemeToken =
     ThemeToken::new_static("feathers.button.primary.txt.disabled");
 
+// Plain buttons (transparent background)
+
+/// Plain button background
+pub const BUTTON_PLAIN_BG: ThemeToken = ThemeToken::new_static("feathers.button.plain.bg");
+/// Plain button background (hovered)
+pub const BUTTON_PLAIN_BG_HOVER: ThemeToken =
+    ThemeToken::new_static("feathers.button.plain.bg.hover");
+/// Plain button background (disabled)
+pub const BUTTON_PLAIN_BG_DISABLED: ThemeToken =
+    ThemeToken::new_static("feathers.button.plain.bg.disabled");
+/// Plain button background (pressed)
+pub const BUTTON_PLAIN_BG_PRESSED: ThemeToken =
+    ThemeToken::new_static("feathers.button.plain.bg.pressed");
+
 // Slider
 
 /// Background for slider
@@ -64,6 +78,16 @@ pub const SLIDER_TEXT: ThemeToken = ThemeToken::new_static("feathers.slider.text
 /// Background for slider text (disabled)
 pub const SLIDER_TEXT_DISABLED: ThemeToken =
     ThemeToken::new_static("feathers.slider.text.disabled");
+
+// Scrollbar
+
+/// Background for scrollbar
+pub const SCROLLBAR_BG: ThemeToken = ThemeToken::new_static("feathers.scrollbar.bg");
+/// Background for scrollbar moving bar
+pub const SCROLLBAR_THUMB: ThemeToken = ThemeToken::new_static("feathers.scrollbar.thumb");
+/// Background for scrollbar moving bar (hovered)
+pub const SCROLLBAR_THUMB_HOVER: ThemeToken =
+    ThemeToken::new_static("feathers.scrollbar.thumb.hover");
 
 // Checkbox
 
@@ -142,3 +166,58 @@ pub const SWITCH_SLIDE_DISABLED: ThemeToken =
 
 /// Color plane frame background
 pub const COLOR_PLANE_BG: ThemeToken = ThemeToken::new_static("feathers.colorplane.bg");
+
+// Menus
+
+/// Menu background
+pub const MENU_BG: ThemeToken = ThemeToken::new_static("feathers.menu.bg");
+/// Menu border
+pub const MENU_BORDER: ThemeToken = ThemeToken::new_static("feathers.menu.border");
+/// Menu item hovered
+pub const MENUITEM_BG_HOVER: ThemeToken = ThemeToken::new_static("feathers.menuitem.bg.hover");
+/// Menu item pressed
+pub const MENUITEM_BG_PRESSED: ThemeToken = ThemeToken::new_static("feathers.menuitem.bg.pressed");
+/// Menu item text
+pub const MENUITEM_TEXT: ThemeToken = ThemeToken::new_static("feathers.menuitem.text");
+/// Menu item text (disabled)
+pub const MENUITEM_TEXT_DISABLED: ThemeToken =
+    ThemeToken::new_static("feathers.menuitem.text.disabled");
+
+// Listview
+
+/// Listview row background
+pub const LISTROW_BG: ThemeToken = ThemeToken::new_static("feathers.listrow.bg");
+/// Listview row background (hovered)
+pub const LISTROW_BG_HOVER: ThemeToken = ThemeToken::new_static("feathers.listrow.bg.hover");
+/// Listview row background (selected)
+pub const LISTROW_BG_SELECTED: ThemeToken = ThemeToken::new_static("feathers.listrow.bg.selected");
+/// Listview row text
+pub const LISTROW_TEXT: ThemeToken = ThemeToken::new_static("feathers.listrow.text");
+/// Listview row text (disabled)
+pub const LISTROW_TEXT_DISABLED: ThemeToken =
+    ThemeToken::new_static("feathers.listrow.text.disabled");
+
+// Pane
+
+/// Pane header background
+pub const PANE_HEADER_BG: ThemeToken = ThemeToken::new_static("feathers.pane.header.bg");
+/// Pane header border
+pub const PANE_HEADER_BORDER: ThemeToken = ThemeToken::new_static("feathers.pane.header.border");
+/// Pane header text color
+pub const PANE_HEADER_TEXT: ThemeToken = ThemeToken::new_static("feathers.pane.header.text");
+/// Pane header divider color
+pub const PANE_HEADER_DIVIDER: ThemeToken = ThemeToken::new_static("feathers.pane.header.divider");
+
+// Subpane
+
+/// Subpane background
+pub const SUBPANE_HEADER_BG: ThemeToken = ThemeToken::new_static("feathers.subpane.header.bg");
+/// Subpane header border
+pub const SUBPANE_HEADER_BORDER: ThemeToken =
+    ThemeToken::new_static("feathers.subpane.header.border");
+/// Subpane header text color
+pub const SUBPANE_HEADER_TEXT: ThemeToken = ThemeToken::new_static("feathers.subpane.header.text");
+/// Subpane body background
+pub const SUBPANE_BODY_BG: ThemeToken = ThemeToken::new_static("feathers.subpane.body.bg");
+/// Subpane body border
+pub const SUBPANE_BODY_BORDER: ThemeToken = ThemeToken::new_static("feathers.subpane.body.border");

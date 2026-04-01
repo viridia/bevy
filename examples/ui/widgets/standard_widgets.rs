@@ -140,7 +140,16 @@ fn update_widget_values(
 fn setup(mut commands: Commands, assets: Res<AssetServer>) {
     // ui camera
     commands.spawn(Camera2d);
+<<<<<<< Updated upstream:examples/ui/widgets/standard_widgets.rs
     commands.spawn(demo_root(&assets));
+=======
+    commands.spawn(demo_root(
+        &assets,
+        Callback::Registered(on_click),
+        Callback::Registered(on_change_value),
+        Callback::Registered(on_change_radio),
+    ));
+>>>>>>> Stashed changes:examples/ui/core_widgets.rs
 }
 
 fn demo_root(asset_server: &AssetServer) -> impl Bundle {

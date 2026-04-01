@@ -101,16 +101,16 @@ pub struct MenuPopup {
 }
 
 /// Component that defines a menu item.
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, Default)]
 #[require(AccessibilityNode(accesskit::Node::new(Role::MenuItem)))]
 pub struct MenuItem;
 
 /// Marker component that indicates that we need to set focus to the first menu item.
-#[derive(Component, Debug, Default)]
+#[derive(Component, Debug, Clone, Default)]
 struct MenuAcquireFocus;
 
 /// Component that indicates that the menu lost focus and is in the process of closing.
-#[derive(Component, Debug, Default)]
+#[derive(Component, Debug, Clone, Default)]
 struct MenuLostFocus;
 
 fn menu_acquire_focus(

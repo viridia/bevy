@@ -41,7 +41,9 @@ use bevy_text::{detect_text_needs_rerender, EditableTextSystems};
 pub use focus::*;
 pub use geometry::*;
 pub use gradients::*;
-pub use interaction_states::{Checkable, Checked, InteractionDisabled, Pressed};
+pub use interaction_states::{
+    Checkable, Checked, InteractionDisabled, Pressed, Selectable, Selected,
+};
 pub use layout::*;
 pub use measurement::*;
 pub use ui_node::*;
@@ -266,7 +268,11 @@ fn build_text_interop(app: &mut App) {
         .add_observer(interaction_states::on_add_checkable)
         .add_observer(interaction_states::on_remove_checkable)
         .add_observer(interaction_states::on_add_checked)
-        .add_observer(interaction_states::on_remove_checked);
+        .add_observer(interaction_states::on_remove_checked)
+        .add_observer(interaction_states::on_add_selectable)
+        .add_observer(interaction_states::on_remove_selectable)
+        .add_observer(interaction_states::on_add_selected)
+        .add_observer(interaction_states::on_remove_selected);
 
     app.configure_sets(
         PostUpdate,

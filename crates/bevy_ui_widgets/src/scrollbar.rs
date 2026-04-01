@@ -2,17 +2,20 @@ use bevy_app::{App, Plugin, PostUpdate};
 use bevy_ecs::{
     component::Component,
     entity::Entity,
+    event::EntityEvent,
     hierarchy::{ChildOf, Children},
     observer::On,
     query::{With, Without},
     reflect::ReflectComponent,
     system::{Query, Res},
 };
-use bevy_math::Vec2;
-use bevy_picking::events::{Cancel, Drag, DragEnd, DragStart, Pointer, Press};
+use bevy_input::mouse::MouseScrollUnit;
+use bevy_math::{Affine2, Vec2};
+use bevy_picking::events::{Cancel, Drag, DragEnd, DragStart, Pointer, Press, Scroll};
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_ui::{
-    ComputedNode, ComputedUiRenderTargetInfo, Node, ScrollPosition, UiGlobalTransform, UiScale, Val,
+    ComputedNode, ComputedUiRenderTargetInfo, Node, OverflowAxis, ScrollPosition,
+    UiGlobalTransform, UiScale, Val,
 };
 
 /// Used to select the orientation of a scrollbar, slider, or other oriented control.
@@ -25,6 +28,15 @@ pub enum ControlOrientation {
     /// Vertical orientation (stretching from top to bottom)
     #[default]
     Vertical,
+}
+
+/// An event which indicates that we want to scroll the specified item into view (adjusting
+/// the scroll position of it's parent).
+#[derive(Copy, Clone, Debug, PartialEq, EntityEvent)]
+#[entity_event(propagate)]
+pub struct ScrollIntoView {
+    /// The activated entity.
+    pub entity: Entity,
 }
 
 /// A headless scrollbar widget, which can be used to build custom scrollbars.
@@ -48,7 +60,7 @@ pub enum ControlOrientation {
 /// The application is free to position the scrollbars relative to the scrolling container however
 /// it wants: it can overlay them on top of the scrolling content, or use a grid layout to displace
 /// the content to make room for the scrollbars.
-#[derive(Component, Debug, Reflect)]
+#[derive(Component, Debug, Reflect, Clone)]
 #[reflect(Component)]
 pub struct Scrollbar {
     /// Entity being scrolled.
@@ -62,13 +74,23 @@ pub struct Scrollbar {
     pub min_thumb_length: f32,
 }
 
+impl Default for Scrollbar {
+    fn default() -> Self {
+        Self {
+            target: Entity::PLACEHOLDER,
+            orientation: Default::default(),
+            min_thumb_length: Default::default(),
+        }
+    }
+}
+
 /// Marker component to indicate that the entity is a scrollbar thumb (the moving, draggable part of
 /// the scrollbar). This should be a child of the scrollbar entity.
-#[derive(Component, Debug)]
-#[require(CoreScrollbarDragState)]
+#[derive(Component, Clone, Default, Debug)]
+#[require(ScrollbarDragState)]
 #[derive(Reflect)]
 #[reflect(Component)]
-pub struct CoreScrollbarThumb;
+pub struct ScrollbarThumb;
 
 impl Scrollbar {
     /// Construct a new scrollbar.
@@ -87,11 +109,18 @@ impl Scrollbar {
     }
 }
 
+/// Marker component to enable trackpad / mouse wheel scrolling. This should be placed on an
+/// entity that has overflow: scroll.
+#[derive(Component, Debug, Default, Clone, Reflect)]
+#[require(ScrollPosition)]
+#[reflect(Component)]
+pub struct ScrollArea;
+
 /// Component used to manage the state of a scrollbar during dragging. This component is
 /// inserted on the thumb entity.
 #[derive(Component, Default, Reflect)]
 #[reflect(Component, Default)]
-pub struct CoreScrollbarDragState {
+pub struct ScrollbarDragState {
     /// Whether the scrollbar is currently being dragged.
     pub dragging: bool,
     /// The value of the scrollbar when dragging started.
@@ -100,7 +129,7 @@ pub struct CoreScrollbarDragState {
 
 fn scrollbar_on_pointer_down(
     mut ev: On<Pointer<Press>>,
-    q_thumb: Query<&ChildOf, With<CoreScrollbarThumb>>,
+    q_thumb: Query<&ChildOf, With<ScrollbarThumb>>,
     mut q_scrollbar: Query<(
         &Scrollbar,
         &ComputedNode,
@@ -159,7 +188,7 @@ fn scrollbar_on_pointer_down(
 
 fn scrollbar_on_drag_start(
     mut ev: On<Pointer<DragStart>>,
-    mut q_thumb: Query<(&ChildOf, &mut CoreScrollbarDragState), With<CoreScrollbarThumb>>,
+    mut q_thumb: Query<(&ChildOf, &mut ScrollbarDragState), With<ScrollbarThumb>>,
     q_scrollbar: Query<&Scrollbar>,
     q_scroll_area: Query<&ScrollPosition>,
 ) {
@@ -179,7 +208,7 @@ fn scrollbar_on_drag_start(
 
 fn scrollbar_on_drag(
     mut ev: On<Pointer<Drag>>,
-    mut q_thumb: Query<(&ChildOf, &mut CoreScrollbarDragState), With<CoreScrollbarThumb>>,
+    mut q_thumb: Query<(&ChildOf, &mut ScrollbarDragState), With<ScrollbarThumb>>,
     mut q_scrollbar: Query<(&ComputedNode, &Scrollbar)>,
     mut q_scroll_pos: Query<(&mut ScrollPosition, &ComputedNode), Without<Scrollbar>>,
     ui_scale: Res<UiScale>,
@@ -221,7 +250,7 @@ fn scrollbar_on_drag(
 
 fn scrollbar_on_drag_end(
     mut ev: On<Pointer<DragEnd>>,
-    mut q_thumb: Query<&mut CoreScrollbarDragState, With<CoreScrollbarThumb>>,
+    mut q_thumb: Query<&mut ScrollbarDragState, With<ScrollbarThumb>>,
 ) {
     if let Ok(mut drag) = q_thumb.get_mut(ev.entity) {
         ev.propagate(false);
@@ -233,7 +262,7 @@ fn scrollbar_on_drag_end(
 
 fn scrollbar_on_drag_cancel(
     mut ev: On<Pointer<Cancel>>,
-    mut q_thumb: Query<&mut CoreScrollbarDragState, With<CoreScrollbarThumb>>,
+    mut q_thumb: Query<&mut ScrollbarDragState, With<ScrollbarThumb>>,
 ) {
     if let Ok(mut drag) = q_thumb.get_mut(ev.entity) {
         ev.propagate(false);
@@ -246,7 +275,7 @@ fn scrollbar_on_drag_cancel(
 fn update_scrollbar_thumb(
     q_scroll_area: Query<(&ScrollPosition, &ComputedNode)>,
     q_scrollbar: Query<(&Scrollbar, &ComputedNode, &Children)>,
-    mut q_thumb: Query<&mut Node, With<CoreScrollbarThumb>>,
+    mut q_thumb: Query<&mut Node, With<ScrollbarThumb>>,
 ) {
     for (scrollbar, scrollbar_node, children) in q_scrollbar.iter() {
         let Ok(scroll_area) = q_scroll_area.get(scrollbar.target) else {
@@ -353,6 +382,108 @@ fn update_scrollbar_thumb(
     }
 }
 
+fn scrollarea_on_scroll(
+    mut scroll: On<Pointer<Scroll>>,
+    mut q_scroll_area: Query<(&Node, &ComputedNode, &mut ScrollPosition), With<ScrollArea>>,
+) {
+    if let Ok((node, computed_node, mut scroll_pos)) = q_scroll_area.get_mut(scroll.entity) {
+        scroll.propagate(false);
+        let visible_size = computed_node.size() * computed_node.inverse_scale_factor;
+        let content_size = computed_node.content_size() * computed_node.inverse_scale_factor;
+
+        let can_scroll_x = node.overflow.x == OverflowAxis::Scroll;
+        let can_scroll_y = node.overflow.y == OverflowAxis::Scroll;
+
+        let scroll_delta = Vec2::new(scroll.x, scroll.y)
+            * match scroll.unit {
+                MouseScrollUnit::Line => 14.0, // Guess for now. No idea how we'd get the real value.
+                MouseScrollUnit::Pixel => 1.0,
+            };
+
+        let max_range = (content_size - visible_size).max(Vec2::ZERO);
+
+        if can_scroll_x {
+            scroll_pos.x = (scroll_pos.x - scroll_delta.x).clamp(0.0, max_range.x);
+        }
+
+        if can_scroll_y {
+            scroll_pos.y = (scroll_pos.y - scroll_delta.y).clamp(0.0, max_range.y);
+        }
+    }
+}
+
+fn on_scroll_into_view(
+    mut scroll: On<ScrollIntoView>,
+    q_node: Query<(&Node, &UiGlobalTransform, &ComputedNode)>,
+    q_parents: Query<&ChildOf>,
+    mut q_scroll_area: Query<&mut ScrollPosition, With<ScrollArea>>,
+) {
+    if let Ok((_target_node, target_transform, target_computed_node)) = q_node.get(scroll.entity) {
+        scroll.propagate(false);
+        let target_affine: Affine2 = target_transform.into();
+        let target_size = target_computed_node.size() * target_computed_node.inverse_scale_factor;
+        let target_pos = target_affine.translation * target_computed_node.inverse_scale_factor
+            - target_size * 0.5;
+
+        let Some(scroll_area_id) = q_parents
+            .iter_ancestors(scroll.entity)
+            .find(|id| q_scroll_area.contains(*id))
+        else {
+            return;
+        };
+
+        let (scroll_area_node, scroll_area_transform, scroll_area_computed_node) =
+            q_node.get(scroll_area_id).unwrap();
+        let scroll_area_affine: Affine2 = scroll_area_transform.into();
+        let scroll_area_size =
+            scroll_area_computed_node.size() * scroll_area_computed_node.inverse_scale_factor;
+        let scroll_area_pos = scroll_area_affine.translation
+            * scroll_area_computed_node.inverse_scale_factor
+            - scroll_area_size * 0.5;
+
+        // Get mutable access to the scroll position and content size info.
+        let Ok(mut scroll_pos) = q_scroll_area.get_mut(scroll_area_id) else {
+            return;
+        };
+
+        // Position of the target relative to the scroll area's top-left.
+        let target_local_top_left = target_pos - scroll_area_pos + scroll_pos.0;
+        let target_local_bottom_right = target_local_top_left + target_size;
+
+        let content_size = scroll_area_computed_node.content_size()
+            * scroll_area_computed_node.inverse_scale_factor;
+        let max_range = (content_size - scroll_area_size).max(Vec2::ZERO);
+
+        let can_scroll_x = scroll_area_node.overflow.x == OverflowAxis::Scroll;
+        let can_scroll_y = scroll_area_node.overflow.y == OverflowAxis::Scroll;
+
+        // Adjust by the minimal amount to make the target fully visible.
+        if can_scroll_x {
+            let view_min = scroll_pos.x;
+            let view_max = scroll_pos.x + scroll_area_size.x;
+
+            if target_local_top_left.x < view_min {
+                scroll_pos.x = target_local_top_left.x.clamp(0.0, max_range.x);
+            } else if target_local_bottom_right.x > view_max {
+                scroll_pos.x =
+                    (target_local_bottom_right.x - scroll_area_size.x).clamp(0.0, max_range.x);
+            }
+        }
+
+        if can_scroll_y {
+            let view_min = scroll_pos.y;
+            let view_max = scroll_pos.y + scroll_area_size.y;
+
+            if target_local_top_left.y < view_min {
+                scroll_pos.y = target_local_top_left.y.clamp(0.0, max_range.y);
+            } else if target_local_bottom_right.y > view_max {
+                scroll_pos.y =
+                    (target_local_bottom_right.y - scroll_area_size.y).clamp(0.0, max_range.y);
+            }
+        }
+    }
+}
+
 /// Plugin that adds the observers for the [`Scrollbar`] widget.
 pub struct ScrollbarPlugin;
 
@@ -363,6 +494,8 @@ impl Plugin for ScrollbarPlugin {
             .add_observer(scrollbar_on_drag_end)
             .add_observer(scrollbar_on_drag_cancel)
             .add_observer(scrollbar_on_drag)
+            .add_observer(scrollarea_on_scroll)
+            .add_observer(on_scroll_into_view)
             .add_systems(PostUpdate, update_scrollbar_thumb);
     }
 }
