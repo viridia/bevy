@@ -1,5 +1,3 @@
-use alloc::sync::Arc;
-
 use bevy_app::{Plugin, PreUpdate};
 use bevy_camera::visibility::Visibility;
 use bevy_color::{Alpha, Srgba};
@@ -11,7 +9,7 @@ use bevy_ecs::{
     observer::On,
     query::{Added, Changed, Has, Or, With},
     schedule::IntoScheduleConfigs,
-    system::{Commands, EntityCommands, Query},
+    system::{Commands, Query},
 };
 use bevy_log::info;
 use bevy_picking::{
@@ -27,7 +25,7 @@ use bevy_ui::{
 };
 use bevy_ui_widgets::{
     popover::{Popover, PopoverAlign, PopoverPlacement, PopoverSide},
-    MenuAction, MenuEvent, MenuItem, MenuPopup,
+    MenuAcquireFocus, MenuAction, MenuEvent, MenuItem, MenuPopup,
 };
 
 use crate::{
@@ -59,62 +57,57 @@ struct MenuPopupStyle;
 
 /// Component that contains the popup content generator.
 #[derive(Component, Clone, Default)]
-struct Menu(Option<Arc<dyn Fn(EntityCommands) + 'static + Send + Sync>>);
-
-/// Stateful marker to let us know that the click event caused our menu to close; don't re-open it.
-#[derive(Component, Default, Clone)]
-struct MenuChildClosed;
+struct Menu;
 
 /// Menu scene function. This wraps the menu button and provides an anchor for the popopver.
-pub fn menu<F: Fn(EntityCommands) + 'static + Send + Sync>(spawn_popover: F) -> impl Scene {
-    let menu = Menu(Some(Arc::new(spawn_popover)));
+pub fn menu() -> impl Scene {
     bsn! {
         Node {
             height: size::ROW_HEIGHT,
             justify_content: JustifyContent::Stretch,
             align_items: AlignItems::Stretch,
         }
-        template_value(menu)
+        Menu
         on(on_menu_event)
     }
 }
 
 fn on_menu_event(
     mut ev: On<MenuEvent>,
-    q_menu: Query<(&Menu, &Children)>,
-    q_popovers: Query<Entity, With<MenuPopupStyle>>,
+    q_menu_children: Query<&Children>,
+    q_popovers: Query<&mut Visibility, With<MenuPopupStyle>>,
     mut commands: Commands,
 ) {
     match ev.event().action {
         // MenuEvent::Open => todo!(),
         // MenuEvent::Close => todo!(),
         MenuAction::Toggle => {
-            ev.propagate(false);
-            let mut was_open = false;
-            let Ok((menu, children)) = q_menu.get(ev.source) else {
+            info!("Toggle");
+            let Ok(children) = q_menu_children.get(ev.source) else {
                 return;
             };
             for child in children.iter() {
-                if q_popovers.contains(*child) {
-                    commands.entity(*child).despawn();
-                    was_open = true;
+                if let Ok(visibility) = q_popovers.get(*child) {
+                    ev.propagate(false);
+                    if visibility == Visibility::Visible {
+                        commands.entity(*child).insert(Visibility::Hidden);
+                    } else {
+                        commands
+                            .entity(*child)
+                            .insert((Visibility::Visible, MenuAcquireFocus));
+                    }
                 }
-            }
-            // Spawn the menu if not already open.
-            if !was_open && let Some(factory) = menu.0.as_ref() {
-                (*factory)(commands.entity(ev.source));
-                // redraw_events.write(RequestRedraw);
             }
         }
         MenuAction::CloseAll => {
-            ev.propagate(false);
-            let Ok((_menu, children)) = q_menu.get(ev.source) else {
+            info!("CloseAll");
+            let Ok(children) = q_menu_children.get(ev.source) else {
                 return;
             };
-            commands.entity(ev.source).insert(MenuChildClosed);
             for child in children.iter() {
                 if q_popovers.contains(*child) {
-                    commands.entity(*child).despawn();
+                    ev.propagate(false);
+                    commands.entity(*child).insert(Visibility::Hidden);
                 }
             }
         }

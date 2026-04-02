@@ -22,7 +22,9 @@ use bevy_ui::{
     px, AlignItems, BorderRadius, Display, FlexDirection, InteractionDisabled, JustifyContent,
     Node, Overflow, PositionType, Selected, UiRect,
 };
-use bevy_ui_widgets::{ActiveDescendant, ControlOrientation, ListBox, ListItem, ScrollArea};
+use bevy_ui_widgets::{
+    ActiveDescendant, ControlOrientation, ListBox, ListItem, ScrollArea, Scrollbar,
+};
 
 use crate::{
     constants::{fonts, size},

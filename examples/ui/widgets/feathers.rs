@@ -4,10 +4,6 @@ use bevy::{
     color::palettes,
     feathers::{
         constants::icons,
-        containers::{
-            flex_spacer, pane, pane_body, pane_header, pane_header_divider, subpane, subpane_body,
-            subpane_header,
-        },
         controls::{
             button, checkbox, color_plane, color_slider, color_swatch, listrow, listview, menu,
             menu_button, menu_item, menu_popup, radio, slider, toggle_switch, tool_button,
@@ -18,6 +14,10 @@ use bevy::{
         cursor::{EntityCursor, OverrideCursor},
         dark_theme::create_dark_theme,
         icon,
+        patterns::{
+            flex_spacer, pane, pane_body, pane_header, pane_header_divider, subpane, subpane_body,
+            subpane_header,
+        },
         rounded_corners::RoundedCorners,
         theme::{ThemeBackgroundColor, ThemedText, UiTheme},
         tokens, FeathersPlugins,
@@ -137,9 +137,15 @@ fn column_1() -> impl Scene {
                         Children [ (Text::new("Primary") ThemedText) ]
                     ),
                     (
-                        menu(|mut parent| {
-                            info!("Queue Spawn Menu");
-                            parent.queue_spawn_related_scenes::<Children>(bsn_list!(
+                        :menu
+                        Children [
+                            (
+                                :menu_button(MenuButtonProps::default())
+                                Children [
+                                    (Text("Menu") ThemedText)
+                                ]
+                            ),
+                            (
                                 :menu_popup
                                 Children [
                                     (
@@ -160,14 +166,6 @@ fn column_1() -> impl Scene {
                                             (Text("MenuItem") ThemedText)
                                         ]
                                     )
-                                ]
-                            ));
-                        })
-                        Children [
-                            (
-                                :menu_button(MenuButtonProps::default())
-                                Children [
-                                    (Text("Menu") ThemedText)
                                 ]
                             )
                         ]

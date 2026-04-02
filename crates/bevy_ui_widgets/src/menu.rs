@@ -34,7 +34,7 @@ pub enum MenuAction {
     Open,
     /// Open the menu if it's closed, close it if it's open. Generally sent from a menu button.
     Toggle,
-    /// Close the menu and despawn it. Despawning may not happen immediately if there is a closing
+    /// Close the menu. This may not happen immediately if there is a closing
     /// transition animation.
     Close,
     /// Close the entire menu stack.
@@ -107,7 +107,7 @@ pub struct MenuItem;
 
 /// Marker component that indicates that we need to set focus to the first menu item.
 #[derive(Component, Debug, Clone, Default)]
-struct MenuAcquireFocus;
+pub struct MenuAcquireFocus;
 
 /// Component that indicates that the menu lost focus and is in the process of closing.
 #[derive(Component, Debug, Clone, Default)]
