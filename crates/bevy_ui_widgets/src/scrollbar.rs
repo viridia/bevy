@@ -1,5 +1,7 @@
 use bevy_app::{App, Plugin, PostUpdate};
+use bevy_camera::visibility::Visibility;
 use bevy_ecs::{
+    change_detection::DetectChangesMut,
     component::Component,
     entity::Entity,
     event::EntityEvent,
@@ -7,6 +9,7 @@ use bevy_ecs::{
     observer::On,
     query::{With, Without},
     reflect::ReflectComponent,
+    schedule::IntoScheduleConfigs,
     system::{Query, Res},
 };
 use bevy_input::mouse::MouseScrollUnit;
@@ -14,8 +17,10 @@ use bevy_math::{Affine2, Vec2};
 use bevy_picking::events::{Cancel, Drag, DragEnd, DragStart, Pointer, Press, Scroll};
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
 use bevy_ui::{
-    ComputedNode, ComputedUiRenderTargetInfo, Node, OverflowAxis, ScrollPosition,
-    UiGlobalTransform, UiScale, Val,
+    prelude::BorderRect, ui_layout_system, BackgroundColor, BorderColor, BorderRadius,
+    ComputedNode, ComputedUiRenderTargetInfo, ComputedUiTargetCamera, FocusPolicy, Node,
+    OverflowAxis, ScrollPosition, UiGlobalTransform, UiRect, UiScale, UiSystems, UiTransform, Val,
+    ZIndex,
 };
 
 /// Used to select the orientation of a scrollbar, slider, or other oriented control.
@@ -53,14 +58,14 @@ pub struct ScrollIntoView {
 /// entity directly.
 ///
 /// A scrollbar can have any number of child entities, but one entity must be the scrollbar thumb,
-/// which is marked with the [`CoreScrollbarThumb`] component. Other children are ignored. The core
+/// which is marked with the [`ScrollbarThumb`] component. Other children are ignored. The core
 /// scrollbar will directly update the position and size of this entity; the application is free to
 /// set any other style properties as desired.
 ///
 /// The application is free to position the scrollbars relative to the scrolling container however
 /// it wants: it can overlay them on top of the scrolling content, or use a grid layout to displace
 /// the content to make room for the scrollbars.
-#[derive(Component, Debug, Reflect, Clone)]
+#[derive(Component, Debug, Reflect, Clone, PartialEq)]
 #[reflect(Component)]
 pub struct Scrollbar {
     /// Entity being scrolled.
@@ -84,13 +89,35 @@ impl Default for Scrollbar {
     }
 }
 
-/// Marker component to indicate that the entity is a scrollbar thumb (the moving, draggable part of
+/// This component indicates that the entity is a scrollbar thumb (the moving, draggable part of
 /// the scrollbar). This should be a child of the scrollbar entity.
-#[derive(Component, Clone, Default, Debug)]
-#[require(ScrollbarDragState)]
-#[derive(Reflect)]
+///
+/// A `ScrollbarThumb` UI node does not have a `Node` component. It only has `Border` and `BorderRadius` styling properties.
+/// Its layout is handled after `ui_layout_system` in `update_scroll_thumb` so that its size and position can be set relative to the scrolling area's
+/// size and scroll position.
+#[derive(Component, Debug, Default)]
+#[require(
+    ScrollbarDragState,
+    ComputedNode,
+    ComputedUiTargetCamera,
+    ComputedUiRenderTargetInfo,
+    UiTransform,
+    BackgroundColor,
+    BorderColor,
+    FocusPolicy::Block,
+    Visibility,
+    ZIndex
+)]
+#[derive(Reflect, Clone)]
 #[reflect(Component)]
-pub struct ScrollbarThumb;
+pub struct ScrollbarThumb {
+    /// Border radius of the scrollbar thumb, used to update [`ComputedNode::border_radius`] in [`UiSystems::Layout`].
+    pub border_radius: BorderRadius,
+    /// Thickness of the thumb node's border.
+    ///
+    /// If the border is too large to fit inside the thumb node, the width of the border will be scaled to fit.
+    pub border: UiRect,
+}
 
 impl Scrollbar {
     /// Construct a new scrollbar.
@@ -272,12 +299,24 @@ fn scrollbar_on_drag_cancel(
     }
 }
 
-fn update_scrollbar_thumb(
-    q_scroll_area: Query<(&ScrollPosition, &ComputedNode)>,
-    q_scrollbar: Query<(&Scrollbar, &ComputedNode, &Children)>,
-    mut q_thumb: Query<&mut Node, With<ScrollbarThumb>>,
+pub(crate) fn update_scrollbar_thumb(
+    q_scroll_area: Query<(&ScrollPosition, &ComputedNode), Without<ScrollbarThumb>>,
+    q_scrollbar: Query<
+        (&Scrollbar, &ComputedNode, &UiGlobalTransform, &Children),
+        Without<ScrollbarThumb>,
+    >,
+    mut q_thumb: Query<
+        (
+            &ScrollbarThumb,
+            &UiTransform,
+            &ComputedUiRenderTargetInfo,
+            &mut ComputedNode,
+            &mut UiGlobalTransform,
+        ),
+        With<ScrollbarThumb>,
+    >,
 ) {
-    for (scrollbar, scrollbar_node, children) in q_scrollbar.iter() {
+    for (scrollbar, scrollbar_node, scrollbar_transform, children) in q_scrollbar.iter() {
         let Ok(scroll_area) = q_scroll_area.get(scrollbar.target) else {
             continue;
         };
@@ -326,57 +365,113 @@ fn update_scrollbar_thumb(
         }
 
         for child in children {
-            if let Ok(mut thumb) = q_thumb.get_mut(*child) {
-                match scrollbar.orientation {
-                    ControlOrientation::Horizontal => {
-                        let (thumb_size, thumb_pos) = size_and_pos(
-                            content_size.x,
-                            visible_size.x,
-                            track_length.x,
-                            scrollbar.min_thumb_length,
-                            scroll_area.0.x,
-                        );
+            let Ok((
+                thumb,
+                thumb_transform,
+                target_info,
+                mut thumb_node,
+                mut thumb_global_transform,
+            )) = q_thumb.get_mut(*child)
+            else {
+                continue;
+            };
 
-                        let top = Val::Px(0.);
-                        let bottom = Val::Px(0.);
-                        let left = Val::Px(thumb_pos);
-                        let width = Val::Px(thumb_size);
-                        if top != thumb.top
-                            || bottom != thumb.bottom
-                            || left != thumb.left
-                            || width != thumb.width
-                        {
-                            thumb.top = top;
-                            thumb.bottom = bottom;
-                            thumb.left = left;
-                            thumb.width = width;
-                        }
-                    }
-                    ControlOrientation::Vertical => {
-                        let (thumb_size, thumb_pos) = size_and_pos(
-                            content_size.y,
-                            visible_size.y,
-                            track_length.y,
-                            scrollbar.min_thumb_length,
-                            scroll_area.0.y,
-                        );
+            let (thumb_logical_size, thumb_center) = match scrollbar.orientation {
+                ControlOrientation::Horizontal => {
+                    let (thumb_size, thumb_pos) = size_and_pos(
+                        content_size.x,
+                        visible_size.x,
+                        track_length.x,
+                        scrollbar.min_thumb_length,
+                        scroll_area.0.x,
+                    );
+                    (
+                        Vec2::new(thumb_size, track_length.y),
+                        Vec2::new(thumb_pos + 0.5 * (thumb_size - track_length.x), 0.),
+                    )
+                }
+                ControlOrientation::Vertical => {
+                    let (thumb_size, thumb_pos) = size_and_pos(
+                        content_size.y,
+                        visible_size.y,
+                        track_length.y,
+                        scrollbar.min_thumb_length,
+                        scroll_area.0.y,
+                    );
+                    (
+                        Vec2::new(track_length.x, thumb_size),
+                        Vec2::new(0., thumb_pos + 0.5 * (thumb_size - track_length.y)),
+                    )
+                }
+            };
 
-                        let left = Val::Px(0.);
-                        let right = Val::Px(0.);
-                        let top = Val::Px(thumb_pos);
-                        let height = Val::Px(thumb_size);
-                        if thumb.left != left
-                            || thumb.right != right
-                            || thumb.top != top
-                            || thumb.height != height
-                        {
-                            thumb.left = left;
-                            thumb.right = right;
-                            thumb.top = top;
-                            thumb.height = height;
-                        }
-                    }
-                };
+            let inverse_scale_factor = target_info.scale_factor().recip();
+            let thumb_physical_size = thumb_logical_size * target_info.scale_factor();
+
+            if thumb_node.size != thumb_physical_size
+                || thumb_node.unrounded_size != thumb_physical_size
+                || thumb_node.inverse_scale_factor != inverse_scale_factor
+            {
+                thumb_node.size = thumb_physical_size;
+                thumb_node.unrounded_size = thumb_physical_size;
+                thumb_node.inverse_scale_factor = inverse_scale_factor;
+            }
+
+            let border_radius = thumb.border_radius.resolve(
+                target_info.scale_factor(),
+                thumb_physical_size,
+                target_info.physical_size().as_vec2(),
+            );
+            if thumb_node.border_radius != border_radius {
+                thumb_node.border_radius = border_radius;
+            }
+
+            let resolve_border_val = |val: Val| {
+                val.resolve(
+                    target_info.scale_factor(),
+                    thumb_physical_size.x,
+                    target_info.physical_size().as_vec2(),
+                )
+                .unwrap_or(0.)
+            };
+
+            let mut resolved_border = BorderRect {
+                min_inset: Vec2::new(
+                    resolve_border_val(thumb.border.left),
+                    resolve_border_val(thumb.border.top),
+                ),
+                max_inset: Vec2::new(
+                    resolve_border_val(thumb.border.right),
+                    resolve_border_val(thumb.border.bottom),
+                ),
+            };
+
+            if thumb_node.size.x < resolved_border.min_inset.x + resolved_border.max_inset.x {
+                let r =
+                    thumb_node.size.x / (resolved_border.min_inset.x + resolved_border.max_inset.x);
+                resolved_border.min_inset.x *= r;
+                resolved_border.max_inset.x *= r;
+            }
+
+            if thumb_node.size.y < resolved_border.min_inset.y + resolved_border.max_inset.y {
+                let r =
+                    thumb_node.size.y / (resolved_border.min_inset.y + resolved_border.max_inset.y);
+                resolved_border.min_inset.y *= r;
+                resolved_border.max_inset.y *= r;
+            }
+
+            thumb_node.bypass_change_detection().border = resolved_border;
+
+            let new_transform = scrollbar_transform.affine()
+                * thumb_transform.compute_affine(
+                    target_info.scale_factor(),
+                    thumb_physical_size,
+                    target_info.physical_size().as_vec2(),
+                )
+                * Affine2::from_translation(thumb_center * target_info.scale_factor());
+
+            if thumb_global_transform.affine() != new_transform {
+                *thumb_global_transform = new_transform.into();
             }
         }
     }
@@ -496,6 +591,11 @@ impl Plugin for ScrollbarPlugin {
             .add_observer(scrollbar_on_drag)
             .add_observer(scrollarea_on_scroll)
             .add_observer(on_scroll_into_view)
-            .add_systems(PostUpdate, update_scrollbar_thumb);
+            .add_systems(
+                PostUpdate,
+                update_scrollbar_thumb
+                    .in_set(UiSystems::Layout)
+                    .after(ui_layout_system),
+            );
     }
 }
