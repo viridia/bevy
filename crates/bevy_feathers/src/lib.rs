@@ -42,6 +42,7 @@ pub mod constants;
 pub mod controls;
 pub mod cursor;
 pub mod dark_theme;
+pub mod focus;
 pub mod font_styles;
 mod icon;
 pub mod palette;
@@ -81,6 +82,7 @@ impl Plugin for FeathersPlugin {
             HierarchyPropagatePlugin::<TextColor, With<ThemedText>>::new(PostUpdate),
             HierarchyPropagatePlugin::<TextFont, With<ThemedText>>::new(PostUpdate),
             UiMaterialPlugin::<AlphaPatternMaterial>::default(),
+            focus::FocusOutlinesPlugin,
         ));
 
         // This needs to run in UiSystems::Propagate so the fonts are up-to-date for `measure_text_system`
