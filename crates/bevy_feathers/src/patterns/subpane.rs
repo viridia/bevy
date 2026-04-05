@@ -1,4 +1,4 @@
-use bevy_scene2::{bsn, Scene};
+use bevy_scene::{bsn, Scene};
 use bevy_text::{FontSize, FontWeight};
 use bevy_ui::{AlignItems, Display, FlexDirection, JustifyContent, Node, UiRect, Val};
 

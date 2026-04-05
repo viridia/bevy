@@ -1,5 +1,5 @@
 use bevy_ecs::hierarchy::Children;
-use bevy_scene2::{bsn, Scene};
+use bevy_scene::{bsn, Scene};
 use bevy_text::{FontSize, FontWeight};
 use bevy_ui::{
     px, AlignItems, AlignSelf, Display, FlexDirection, JustifyContent, Node, PositionType, UiRect,

@@ -16,7 +16,7 @@ use bevy_ecs::{
 use bevy_input_focus::{tab_navigation::TabIndex, InputFocus, InputFocusVisible};
 use bevy_picking::{hover::Hovered, PickingSystems};
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
-use bevy_scene2::{bsn, Scene, SceneList};
+use bevy_scene::{bsn, Scene, SceneList};
 use bevy_text::{FontSize, FontWeight};
 use bevy_ui::{
     px, AlignItems, BorderRadius, Display, FlexDirection, InteractionDisabled, JustifyContent,

@@ -17,7 +17,7 @@ use bevy_picking::{
     hover::Hovered,
     PickingSystems,
 };
-use bevy_scene2::{prelude::*, template_value};
+use bevy_scene::{prelude::*, template_value};
 use bevy_text::{FontSize, FontWeight};
 use bevy_ui::{
     AlignItems, BoxShadow, Display, FlexDirection, GlobalZIndex, InteractionDisabled,

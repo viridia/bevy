@@ -11,7 +11,7 @@ use bevy_ecs::{
 };
 use bevy_picking::{hover::Hovered, PickingSystems};
 use bevy_reflect::{prelude::ReflectDefault, Reflect};
-use bevy_scene2::prelude::*;
+use bevy_scene::prelude::*;
 use bevy_ui::{px, BorderRadius, Node, PositionType};
 use bevy_ui_widgets::{ControlOrientation, Scrollbar, ScrollbarDragState, ScrollbarThumb};
 

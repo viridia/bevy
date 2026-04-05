@@ -1,7 +1,7 @@
 //! BSN Template for loading images and displaying them as [`ImageNodes`].
 use bevy_asset::AssetServer;
 use bevy_ecs::template::template;
-use bevy_scene2::{bsn, Scene};
+use bevy_scene::{bsn, Scene};
 use bevy_ui::{widget::ImageNode, Node, Val};
 
 /// Template which displays an icon.
