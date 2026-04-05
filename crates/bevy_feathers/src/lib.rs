@@ -39,6 +39,7 @@ use crate::{
 
 mod alpha_pattern;
 pub mod constants;
+pub mod containers;
 pub mod controls;
 pub mod cursor;
 pub mod dark_theme;
@@ -46,7 +47,6 @@ pub mod focus;
 pub mod font_styles;
 mod icon;
 pub mod palette;
-pub mod patterns;
 pub mod rounded_corners;
 pub mod theme;
 pub mod tokens;

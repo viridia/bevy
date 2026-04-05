@@ -4,6 +4,10 @@ use bevy::{
     color::palettes,
     feathers::{
         constants::icons,
+        containers::{
+            flex_spacer, pane, pane_body, pane_header, pane_header_divider, subpane, subpane_body,
+            subpane_header,
+        },
         controls::{
             button, checkbox, color_plane, color_slider, color_swatch, listrow, listview, menu,
             menu_button, menu_item, menu_popup, radio, slider, toggle_switch, tool_button,
@@ -14,10 +18,6 @@ use bevy::{
         cursor::{EntityCursor, OverrideCursor},
         dark_theme::create_dark_theme,
         icon,
-        patterns::{
-            flex_spacer, pane, pane_body, pane_header, pane_header_divider, subpane, subpane_body,
-            subpane_header,
-        },
         rounded_corners::RoundedCorners,
         theme::{ThemeBackgroundColor, ThemedText, UiTheme},
         tokens, FeathersPlugins,
