@@ -2,6 +2,7 @@ use bevy_app::{Plugin, PreUpdate};
 use bevy_camera::visibility::Visibility;
 use bevy_color::{Alpha, Srgba};
 use bevy_ecs::{
+    change_detection::DetectChanges,
     component::Component,
     entity::Entity,
     hierarchy::Children,
@@ -9,14 +10,10 @@ use bevy_ecs::{
     observer::On,
     query::{Added, Changed, Has, Or, With},
     schedule::IntoScheduleConfigs,
-    system::{Commands, Query},
+    system::{Commands, Query, Res, ResMut},
 };
-use bevy_log::info;
-use bevy_picking::{
-    events::{Pointer, Press},
-    hover::Hovered,
-    PickingSystems,
-};
+use bevy_log::{info, warn};
+use bevy_picking::{hover::Hovered, PickingSystems};
 use bevy_scene::{prelude::*, template_value};
 use bevy_text::{FontSize, FontWeight};
 use bevy_ui::{
@@ -25,7 +22,8 @@ use bevy_ui::{
 };
 use bevy_ui_widgets::{
     popover::{Popover, PopoverAlign, PopoverPlacement, PopoverSide},
-    MenuAcquireFocus, MenuAction, MenuEvent, MenuItem, MenuPopup,
+    Activate, ActivateOnPress, MenuAction, MenuButton, MenuEvent, MenuFocusState, MenuItem,
+    MenuPopup,
 };
 
 use crate::{
@@ -38,7 +36,10 @@ use crate::{
     theme::{ThemeBackgroundColor, ThemeBorderColor, ThemeFontColor},
     tokens,
 };
-use bevy_input_focus::tab_navigation::TabIndex;
+use bevy_input_focus::{
+    tab_navigation::{NavAction, TabIndex},
+    InputFocus,
+};
 
 /// Parameters for the menu button template, passed to [`menu_button`] function.
 #[derive(Default)]
@@ -47,17 +48,21 @@ pub struct MenuButtonProps {
     pub corners: RoundedCorners,
 }
 
+/// Marker for menu button
+#[derive(Component, Default, Clone)]
+struct FeathersMenuButton;
+
 /// Marker for menu items
 #[derive(Component, Default, Clone)]
-struct MenuItemStyle;
+struct FeathersMenuItem;
 
 /// Marker for menu popup
 #[derive(Component, Default, Clone)]
-struct MenuPopupStyle;
+struct FeathersMenuPopup;
 
 /// Component that contains the popup content generator.
 #[derive(Component, Clone, Default)]
-struct Menu;
+struct FeathersMenuContainer;
 
 /// Menu scene function. This wraps the menu button and provides an anchor for the popopver.
 pub fn menu() -> impl Scene {
@@ -67,7 +72,7 @@ pub fn menu() -> impl Scene {
             justify_content: JustifyContent::Stretch,
             align_items: AlignItems::Stretch,
         }
-        Menu
+        FeathersMenuContainer
         on(on_menu_event)
     }
 }
@@ -75,14 +80,29 @@ pub fn menu() -> impl Scene {
 fn on_menu_event(
     mut ev: On<MenuEvent>,
     q_menu_children: Query<&Children>,
-    q_popovers: Query<&mut Visibility, With<MenuPopupStyle>>,
+    q_popovers: Query<&mut Visibility, With<FeathersMenuPopup>>,
+    q_buttons: Query<(), With<FeathersMenuButton>>,
     mut commands: Commands,
+    mut focus: ResMut<InputFocus>,
 ) {
+    info!("Menu Event: {:?}", ev.event().action);
     match ev.event().action {
-        // MenuEvent::Open => todo!(),
-        // MenuEvent::Close => todo!(),
+        MenuAction::Open(nav) => {
+            let Ok(children) = q_menu_children.get(ev.source) else {
+                return;
+            };
+            ev.propagate(false);
+            for child in children.iter() {
+                if q_popovers.contains(*child) {
+                    commands
+                        .entity(*child)
+                        .insert((Visibility::Visible, MenuFocusState::Opening(nav)));
+                    return;
+                }
+            }
+            warn!("Menu popup not found");
+        }
         MenuAction::Toggle => {
-            info!("Toggle");
             let Ok(children) = q_menu_children.get(ev.source) else {
                 return;
             };
@@ -92,15 +112,17 @@ fn on_menu_event(
                     if visibility == Visibility::Visible {
                         commands.entity(*child).insert(Visibility::Hidden);
                     } else {
-                        commands
-                            .entity(*child)
-                            .insert((Visibility::Visible, MenuAcquireFocus));
+                        commands.entity(*child).insert((
+                            Visibility::Visible,
+                            MenuFocusState::Opening(NavAction::First),
+                        ));
                     }
+                    return;
                 }
             }
+            warn!("Menu popup not found");
         }
         MenuAction::CloseAll => {
-            info!("CloseAll");
             let Ok(children) = q_menu_children.get(ev.source) else {
                 return;
             };
@@ -111,9 +133,17 @@ fn on_menu_event(
                 }
             }
         }
-        // MenuEvent::FocusRoot => todo!(),
-        event => {
-            info!("Menu Event: {:?}", event);
+        MenuAction::FocusRoot => {
+            let Ok(children) = q_menu_children.get(ev.source) else {
+                return;
+            };
+            for child in children.iter() {
+                if q_buttons.contains(*child) {
+                    ev.propagate(false);
+                    focus.0 = Some(*child);
+                    break;
+                }
+            }
         }
     }
 }
@@ -128,12 +158,15 @@ pub fn menu_button(props: MenuButtonProps) -> impl Scene {
             variant: ButtonVariant::Normal,
             corners: props.corners,
         })
+        ActivateOnPress
+        MenuButton
         Node {
             // TODO: HACK to deal with lack of intercepted children.
             // We want to put the chevron after the label, but BSN doesn't allow this yet.
             flex_direction: FlexDirection::RowReverse,
         }
-        on(on_menu_button_press)
+        FeathersMenuButton
+        on(on_menu_button_activate)
         Children [
             :icon(icons::CHEVRON_DOWN),
             Node {
@@ -143,11 +176,9 @@ pub fn menu_button(props: MenuButtonProps) -> impl Scene {
     }
 }
 
-fn on_menu_button_press(ev: On<Pointer<Press>>, mut commands: Commands) {
-    // Note that by using `press` rather than `click`, we can proces the action before the
-    // menu closes from focus loss.
+fn on_menu_button_activate(activate: On<Activate>, mut commands: Commands) {
     commands.trigger(MenuEvent {
-        source: ev.entity,
+        source: activate.entity,
         action: MenuAction::Toggle,
     });
 }
@@ -165,7 +196,7 @@ pub fn menu_popup() -> impl Scene {
             padding: UiRect::all(Val::Px(4.0)),
             border_radius: {RoundedCorners::All.to_border_radius(4.0)},
         }
-        MenuPopupStyle
+        FeathersMenuPopup
         MenuPopup
         template_value(Visibility::Hidden)
         ThemeBackgroundColor(tokens::MENU_BG)
@@ -209,7 +240,7 @@ pub fn menu_item() -> impl Scene {
             align_items: AlignItems::Center,
             padding: UiRect::axes(Val::Px(8.0), Val::Px(0.)),
         }
-        MenuItemStyle
+        FeathersMenuItem
         MenuItem
         Hovered
         EntityCursor::System(bevy_window::SystemCursorIcon::Pointer)
@@ -235,18 +266,20 @@ fn update_menuitem_styles(
             &ThemeFontColor,
         ),
         (
-            With<MenuItemStyle>,
+            With<FeathersMenuItem>,
             Or<(Changed<Hovered>, Added<Pressed>, Added<InteractionDisabled>)>,
         ),
     >,
     mut commands: Commands,
+    focus: Res<InputFocus>,
 ) {
-    for (button_ent, disabled, pressed, hovered, bg_color, font_color) in q_menuitems.iter() {
+    for (item_ent, disabled, pressed, hovered, bg_color, font_color) in q_menuitems.iter() {
         set_menuitem_colors(
-            button_ent,
+            item_ent,
             disabled,
             pressed,
             hovered.0,
+            Some(item_ent) == focus.0,
             bg_color,
             font_color,
             &mut commands,
@@ -264,24 +297,26 @@ fn update_menuitem_styles_remove(
             &ThemeBackgroundColor,
             &ThemeFontColor,
         ),
-        With<MenuItemStyle>,
+        With<FeathersMenuItem>,
     >,
     mut removed_disabled: RemovedComponents<InteractionDisabled>,
     mut removed_pressed: RemovedComponents<Pressed>,
+    focus: Res<InputFocus>,
     mut commands: Commands,
 ) {
     removed_disabled
         .read()
         .chain(removed_pressed.read())
         .for_each(|ent| {
-            if let Ok((button_ent, disabled, pressed, hovered, bg_color, font_color)) =
+            if let Ok((item_ent, disabled, pressed, hovered, bg_color, font_color)) =
                 q_menuitems.get(ent)
             {
                 set_menuitem_colors(
-                    button_ent,
+                    item_ent,
                     disabled,
                     pressed,
                     hovered.0,
+                    Some(item_ent) == focus.0,
                     bg_color,
                     font_color,
                     &mut commands,
@@ -290,19 +325,52 @@ fn update_menuitem_styles_remove(
         });
 }
 
+fn update_menuitem_styles_focus_changed(
+    q_menuitems: Query<
+        (
+            Entity,
+            Has<InteractionDisabled>,
+            Has<Pressed>,
+            &Hovered,
+            &ThemeBackgroundColor,
+            &ThemeFontColor,
+        ),
+        With<FeathersMenuItem>,
+    >,
+    focus: Res<InputFocus>,
+    mut commands: Commands,
+) {
+    if focus.is_changed() {
+        for (item_ent, disabled, pressed, hovered, bg_color, font_color) in q_menuitems.iter() {
+            set_menuitem_colors(
+                item_ent,
+                disabled,
+                pressed,
+                hovered.0,
+                Some(item_ent) == focus.0,
+                bg_color,
+                font_color,
+                &mut commands,
+            );
+        }
+    }
+}
+
 fn set_menuitem_colors(
     button_ent: Entity,
     disabled: bool,
     pressed: bool,
     hovered: bool,
+    focused: bool,
     bg_color: &ThemeBackgroundColor,
     font_color: &ThemeFontColor,
     commands: &mut Commands,
 ) {
-    let bg_token = match (pressed, hovered) {
-        (true, _) => tokens::MENUITEM_BG_PRESSED,
-        (false, true) => tokens::MENUITEM_BG_HOVER,
-        (false, false) => tokens::MENU_BG,
+    let bg_token = match (focused, pressed, hovered) {
+        (true, _, _) => tokens::MENUITEM_BG_FOCUSED,
+        (false, true, _) => tokens::MENUITEM_BG_PRESSED,
+        (false, false, true) => tokens::MENUITEM_BG_HOVER,
+        (false, false, false) => tokens::MENU_BG,
     };
 
     let font_color_token = match disabled {
@@ -332,7 +400,12 @@ impl Plugin for MenuPlugin {
     fn build(&self, app: &mut bevy_app::App) {
         app.add_systems(
             PreUpdate,
-            (update_menuitem_styles, update_menuitem_styles_remove).in_set(PickingSystems::Last),
+            (
+                update_menuitem_styles,
+                update_menuitem_styles_remove,
+                update_menuitem_styles_focus_changed,
+            )
+                .in_set(PickingSystems::Last),
         );
     }
 }

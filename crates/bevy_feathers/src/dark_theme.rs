@@ -113,6 +113,7 @@ pub fn create_dark_theme() -> ThemeProps {
             (tokens::MENU_BORDER, palette::WARM_GRAY_1),
             (tokens::MENUITEM_BG_HOVER, palette::GRAY_1.lighter(0.05)),
             (tokens::MENUITEM_BG_PRESSED, palette::GRAY_1.lighter(0.1)),
+            (tokens::MENUITEM_BG_FOCUSED, palette::GRAY_1.lighter(0.1)),
             (tokens::MENUITEM_TEXT, palette::WHITE),
             (
                 tokens::MENUITEM_TEXT_DISABLED,

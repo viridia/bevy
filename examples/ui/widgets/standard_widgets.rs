@@ -800,7 +800,7 @@ fn on_menu_event(
     let popup = children.iter().find_map(|c| q_popup.get(c).ok());
     info!("Menu action: {:?}", menu_event.action);
     match menu_event.action {
-        MenuAction::Open => {
+        MenuAction::Open(_) => {
             if popup.is_none() {
                 spawn_menu(anchor, assets, commands);
             }
@@ -809,7 +809,7 @@ fn on_menu_event(
             Some(popup) => commands.entity(popup).despawn(),
             None => spawn_menu(anchor, assets, commands),
         },
-        MenuAction::Close | MenuAction::CloseAll => {
+        MenuAction::CloseAll => {
             if let Some(popup) = popup {
                 commands.entity(popup).despawn();
             }

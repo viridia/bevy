@@ -7,7 +7,6 @@ use bevy_ecs::{
     entity::Entity,
     hierarchy::{ChildOf, Children},
     lifecycle::RemovedComponents,
-    prelude::Name,
     query::{Added, Changed, Has, Or, With},
     reflect::ReflectComponent,
     schedule::IntoScheduleConfigs as _,
@@ -22,13 +21,10 @@ use bevy_ui::{
     px, AlignItems, BorderRadius, Display, FlexDirection, InteractionDisabled, JustifyContent,
     Node, Overflow, PositionType, Selected, UiRect,
 };
-use bevy_ui_widgets::{
-    ActiveDescendant, ControlOrientation, ListBox, ListItem, ScrollArea, Scrollbar,
-};
+use bevy_ui_widgets::{ActiveDescendant, ListBox, ListItem, ScrollArea, Scrollbar};
 
 use crate::{
     constants::{fonts, size},
-    controls::scrollbar::scrollbar,
     cursor::EntityCursor,
     font_styles::InheritableFont,
     theme::{ThemeBackgroundColor, ThemeBorderColor, ThemeFontColor},

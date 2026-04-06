@@ -177,6 +177,8 @@ pub const MENU_BORDER: ThemeToken = ThemeToken::new_static("feathers.menu.border
 pub const MENUITEM_BG_HOVER: ThemeToken = ThemeToken::new_static("feathers.menuitem.bg.hover");
 /// Menu item pressed
 pub const MENUITEM_BG_PRESSED: ThemeToken = ThemeToken::new_static("feathers.menuitem.bg.pressed");
+/// Menu item focused
+pub const MENUITEM_BG_FOCUSED: ThemeToken = ThemeToken::new_static("feathers.menuitem.bg.focused");
 /// Menu item text
 pub const MENUITEM_TEXT: ThemeToken = ThemeToken::new_static("feathers.menuitem.text");
 /// Menu item text (disabled)
