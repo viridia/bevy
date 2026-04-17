@@ -186,8 +186,8 @@ pub(crate) fn on_changed_text_color(
     }
 }
 
-/// An observer which looks for changes to the [`ThemeFontColor`] component on an entity, and
-/// propagates downward the text color to all participating text entities.
+/// An observer which looks for changes to the [`InheritableThemeTextColor`] component on an entity,
+/// and propagates downward the text color to all participating text entities.
 pub(crate) fn on_changed_font_color(
     insert: On<Insert, InheritableThemeTextColor>,
     font_color: Query<&InheritableThemeTextColor>,
