@@ -31,7 +31,7 @@ use crate::{
 #[derive(Component, Default, Clone)]
 struct FeathersNumberInput;
 
-/// Parameters for the text input template, passed to [`text_input`] function.
+/// Parameters for the text input template, passed to [`number_input`] function.
 pub struct NumberInputProps {
     /// The "sigil" is a colored strip along the left edge of the input, which is used to
     /// distinguish between different axes. The default is transparent (no sigil).
