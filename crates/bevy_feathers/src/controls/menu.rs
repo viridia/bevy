@@ -32,7 +32,7 @@ use crate::{
     display::icon,
     font_styles::InheritableFont,
     rounded_corners::RoundedCorners,
-    theme::{ThemeBackgroundColor, ThemeBorderColor, InheritableThemeTextColor},
+    theme::{InheritableThemeTextColor, ThemeBackgroundColor, ThemeBorderColor},
     tokens,
 };
 use bevy_input_focus::{

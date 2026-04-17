@@ -29,7 +29,7 @@ use crate::{
     cursor::EntityCursor,
     focus::FocusIndicator,
     font_styles::InheritableFont,
-    theme::{ThemeBackgroundColor, ThemeBorderColor, InheritableThemeTextColor},
+    theme::{InheritableThemeTextColor, ThemeBackgroundColor, ThemeBorderColor},
     tokens,
 };
 

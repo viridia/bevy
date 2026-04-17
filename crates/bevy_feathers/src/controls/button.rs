@@ -25,7 +25,7 @@ use crate::{
     focus::FocusIndicator,
     font_styles::InheritableFont,
     rounded_corners::RoundedCorners,
-    theme::{ThemeBackgroundColor, InheritableThemeTextColor},
+    theme::{InheritableThemeTextColor, ThemeBackgroundColor},
     tokens,
 };
 
