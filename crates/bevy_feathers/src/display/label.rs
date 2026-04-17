@@ -1,13 +1,14 @@
 //! BSN scene function for displaying a plain text string in the correct font.
-use bevy_ecs::hierarchy::Children;
+use bevy_app::PropagateOver;
+use bevy_asset::AssetServer;
+use bevy_ecs::template::template;
 use bevy_scene::{bsn, template_value, Scene};
-use bevy_text::FontWeight;
-use bevy_ui::{widget::Text, Node};
+use bevy_text::{FontSource, FontWeight, TextFont};
+use bevy_ui::widget::Text;
 
 use crate::{
     constants::{fonts, size},
-    font_styles::InheritableFont,
-    theme::{ThemeFontColor, ThemedText},
+    theme::ThemeTextColor,
     tokens,
 };
 
@@ -15,17 +16,17 @@ use crate::{
 pub fn label(text: impl Into<String>) -> impl Scene {
     let text = Text::new(text.into());
     bsn! {
-        Node
-        ThemeFontColor(tokens::TEXT_MAIN)
-        InheritableFont {
-            font: fonts::REGULAR,
-            font_size: size::MEDIUM_FONT,
-            weight: FontWeight::NORMAL,
-        }
-        Children [
-            template_value(text)
-            ThemedText
-        ]
+        template_value(text)
+        template(|ctx| {
+            Ok(TextFont {
+                font: FontSource::Handle(ctx.resource::<AssetServer>().load(fonts::REGULAR)),
+                font_size: size::MEDIUM_FONT,
+                weight: FontWeight::NORMAL,
+                ..Default::default()
+            })
+        })
+        PropagateOver<TextFont>
+        ThemeTextColor(tokens::TEXT_MAIN)
     }
 }
 
@@ -33,16 +34,34 @@ pub fn label(text: impl Into<String>) -> impl Scene {
 pub fn label_dim(text: impl Into<String>) -> impl Scene {
     let text = Text::new(text.into());
     bsn! {
-        Node
-        ThemeFontColor(tokens::TEXT_DIM)
-        InheritableFont {
-            font: fonts::REGULAR,
-            font_size: size::MEDIUM_FONT,
-            weight: FontWeight::NORMAL,
-        }
-        Children [
-            template_value(text)
-            ThemedText
-        ]
+        template_value(text)
+        template(|ctx| {
+            Ok(TextFont {
+                font: FontSource::Handle(ctx.resource::<AssetServer>().load(fonts::REGULAR)),
+                font_size: size::MEDIUM_FONT,
+                weight: FontWeight::NORMAL,
+                ..Default::default()
+            })
+        })
+        PropagateOver<TextFont>
+        ThemeTextColor(tokens::TEXT_DIM)
+    }
+}
+
+/// A small text label, used for field captions.
+pub fn label_small(text: impl Into<String>) -> impl Scene {
+    let text = Text::new(text.into());
+    bsn! {
+        template_value(text)
+        template(|ctx| {
+            Ok(TextFont {
+                font: FontSource::Handle(ctx.resource::<AssetServer>().load(fonts::REGULAR)),
+                font_size: size::EXTRA_SMALL_FONT,
+                weight: FontWeight::NORMAL,
+                ..Default::default()
+            })
+        })
+        PropagateOver<TextFont>
+        ThemeTextColor(tokens::TEXT_MAIN)
     }
 }

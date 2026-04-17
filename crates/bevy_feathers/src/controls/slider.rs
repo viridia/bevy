@@ -34,7 +34,7 @@ use crate::{
     focus::FocusIndicator,
     font_styles::InheritableFont,
     rounded_corners::RoundedCorners,
-    theme::{ThemeFontColor, ThemedText, UiTheme},
+    theme::{InheritableThemeTextColor, ThemedText, UiTheme},
     tokens,
 };
 
@@ -120,7 +120,7 @@ pub fn slider(props: SliderProps) -> impl Scene {
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
             }
-            ThemeFontColor(tokens::SLIDER_TEXT)
+            InheritableThemeTextColor(tokens::SLIDER_TEXT)
             InheritableFont {
                 font: fonts::MONO,
                 font_size: size::SMALL_FONT,
@@ -187,7 +187,7 @@ pub fn slider_bundle<B: Bundle>(props: SliderProps, overrides: B) -> impl Bundle
                 justify_content: JustifyContent::Center,
                 ..Default::default()
             },
-            ThemeFontColor(tokens::SLIDER_TEXT),
+            InheritableThemeTextColor(tokens::SLIDER_TEXT),
             InheritableFont {
                 font_size: size::SMALL_FONT,
                 weight: FontWeight::NORMAL,

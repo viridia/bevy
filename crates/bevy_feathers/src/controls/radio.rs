@@ -29,7 +29,7 @@ use crate::{
     cursor::EntityCursor,
     focus::FocusIndicator,
     font_styles::InheritableFont,
-    theme::{ThemeBackgroundColor, ThemeBorderColor, ThemeFontColor},
+    theme::{ThemeBackgroundColor, ThemeBorderColor, InheritableThemeTextColor},
     tokens,
 };
 
@@ -78,7 +78,7 @@ pub fn radio(props: RadioProps) -> impl Scene {
         Hovered
         EntityCursor::System(bevy_window::SystemCursorIcon::Pointer)
         TabIndex(0)
-        ThemeFontColor(tokens::RADIO_TEXT)
+        InheritableThemeTextColor(tokens::RADIO_TEXT)
         InheritableFont {
             font: fonts::REGULAR,
             font_size: size::MEDIUM_FONT,
@@ -139,7 +139,7 @@ pub fn radio_bundle<C: SpawnableList<ChildOf> + Send + Sync + 'static, B: Bundle
         Hovered::default(),
         EntityCursor::System(bevy_window::SystemCursorIcon::Pointer),
         TabIndex(0),
-        ThemeFontColor(tokens::RADIO_TEXT),
+        InheritableThemeTextColor(tokens::RADIO_TEXT),
         InheritableFont {
             font_size: size::MEDIUM_FONT,
             weight: FontWeight::NORMAL,
@@ -185,7 +185,7 @@ fn update_radio_styles(
             Has<InteractionDisabled>,
             Has<Checked>,
             &Hovered,
-            &ThemeFontColor,
+            &InheritableThemeTextColor,
         ),
         (
             With<RadioButton>,
@@ -234,7 +234,7 @@ fn update_radio_styles_remove(
             Has<InteractionDisabled>,
             Has<Checked>,
             &Hovered,
-            &ThemeFontColor,
+            &InheritableThemeTextColor,
         ),
         With<RadioButton>,
     >,
@@ -289,7 +289,7 @@ fn set_radio_styles(
     hovered: bool,
     outline_border: &ThemeBorderColor,
     mark_color: &ThemeBackgroundColor,
-    font_color: &ThemeFontColor,
+    font_color: &InheritableThemeTextColor,
     commands: &mut Commands,
 ) {
     let outline_border_token = match (disabled, hovered) {
@@ -337,7 +337,7 @@ fn set_radio_styles(
     if font_color.0 != font_color_token {
         commands
             .entity(radio_ent)
-            .insert(ThemeFontColor(font_color_token));
+            .insert(InheritableThemeTextColor(font_color_token));
     }
 
     // Change cursor shape
