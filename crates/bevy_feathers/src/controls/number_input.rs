@@ -11,7 +11,8 @@ use bevy_ecs::{
     system::{Commands, Query, Res},
     template::template,
 };
-use bevy_input_focus::{FocusLost, InputFocus};
+use bevy_input::keyboard::{KeyCode, KeyboardInput};
+use bevy_input_focus::{FocusLost, FocusedInput, InputFocus};
 use bevy_log::warn;
 use bevy_scene::prelude::*;
 use bevy_text::{
@@ -70,7 +71,7 @@ pub fn number_input(props: NumberInputProps) -> impl Scene {
         ThemeBorderColor({props.sigil_color.clone()})
         FeathersNumberInput
         NumberInputValue(0.0)
-        on(on_number_value_change)
+        on(number_input_on_value_change)
         Children [
             {
                 match props.label_text {
@@ -105,8 +106,9 @@ pub fn number_input(props: NumberInputProps) -> impl Scene {
                 visible_width: None,
                 max_characters: Some(20),
             })
-            on(on_number_text_change)
-            on(on_focus_loss)
+            on(number_input_on_text_change)
+            on(number_input_on_enter_key)
+            on(number_input_on_focus_loss)
             EditableTextFilter::new(|c| {
                 c.is_ascii_digit() || matches!(c, '.' | '-' | '+' | 'e' | 'E')
             }),
@@ -114,7 +116,7 @@ pub fn number_input(props: NumberInputProps) -> impl Scene {
     }
 }
 
-fn on_number_text_change(
+fn number_input_on_text_change(
     change: On<TextEditChange>,
     q_parent: Query<&ChildOf>,
     q_number_input: Query<(), With<FeathersNumberInput>>,
@@ -139,6 +141,7 @@ fn on_number_text_change(
             commands.trigger(ValueChange {
                 source: parent.0,
                 value: new_value,
+                is_final: false,
             });
         }
         Err(_) => {
@@ -148,7 +151,7 @@ fn on_number_text_change(
     }
 }
 
-fn on_number_value_change(
+fn number_input_on_value_change(
     change: On<Insert, NumberInputValue>,
     q_children: Query<&Children>,
     q_number_input: Query<&NumberInputValue, With<FeathersNumberInput>>,
@@ -174,15 +177,49 @@ fn on_number_value_change(
     }
 }
 
-/// When we lose focus, apply any changes in [`NumberInputValue`] to the text buffer, in case
-/// that there was a programmatic value change while we were editing. Ideally, this will always
-/// be true since the app response to a [`ValueChange`] should be to update the value.
-fn on_focus_loss(
+fn number_input_on_enter_key(
+    key_input: On<FocusedInput<KeyboardInput>>,
+    q_parent: Query<&ChildOf>,
+    q_number_input: Query<(), With<FeathersNumberInput>>,
+    q_text_input: Query<&EditableText>,
+    mut commands: Commands,
+) {
+    if key_input.input.key_code != KeyCode::Enter {
+        return;
+    }
+
+    let Ok(parent) = q_parent.get(key_input.event_target()) else {
+        return;
+    };
+
+    if !q_number_input.contains(parent.get()) {
+        return;
+    }
+
+    let Ok(editable_text) = q_text_input.get(key_input.event_target()) else {
+        return;
+    };
+
+    let text_value = editable_text.value().to_string();
+    match text_value.parse::<f32>() {
+        Ok(new_value) => {
+            commands.trigger(ValueChange {
+                source: parent.0,
+                value: new_value,
+                is_final: true,
+            });
+        }
+        Err(_) => {
+            warn!("Invalid floating-point number in text edit");
+        }
+    }
+}
+
+fn number_input_on_focus_loss(
     focus_lost: On<FocusLost>,
     q_parent: Query<&ChildOf>,
-    q_number_input: Query<&NumberInputValue, With<FeathersNumberInput>>,
     mut q_text_input: Query<&mut EditableText>,
-    focus: Res<InputFocus>,
+    mut commands: Commands,
 ) {
     let editable_text_id = focus_lost.event_target();
 
@@ -190,20 +227,22 @@ fn on_focus_loss(
         return;
     };
 
-    let Ok(number_input_value) = q_number_input.get(parent.get()) else {
+    let Ok(editable_text) = q_text_input.get_mut(editable_text_id) else {
         return;
     };
 
-    let Ok(mut editable_text) = q_text_input.get_mut(editable_text_id) else {
-        return;
-    };
-
-    if focus.get() != Some(editable_text_id) {
-        let new_text = format!("{}", number_input_value.0);
-        let current_text: String = editable_text.value().to_string();
-        if new_text != current_text {
-            editable_text.queue_edit(TextEdit::SelectAll);
-            editable_text.queue_edit(TextEdit::Insert(new_text.into()));
+    let text_value = editable_text.value().to_string();
+    match text_value.parse::<f32>() {
+        Ok(new_value) => {
+            commands.trigger(ValueChange {
+                source: parent.0,
+                value: new_value,
+                is_final: true,
+            });
+        }
+        Err(_) => {
+            // TODO: Emit a validation error once these are defined
+            warn!("Invalid floating-point number in text edit");
         }
     }
 }

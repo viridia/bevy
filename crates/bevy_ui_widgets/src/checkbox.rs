@@ -49,6 +49,7 @@ fn checkbox_on_key_input(
             commands.trigger(ValueChange {
                 source: ev.focused_entity,
                 value: !is_checked,
+                is_final: true,
             });
         }
     }
@@ -68,6 +69,7 @@ fn checkbox_on_pointer_click(
             commands.trigger(ValueChange {
                 source: click.entity,
                 value: !is_checked,
+                is_final: true,
             });
         }
     }
@@ -108,6 +110,7 @@ fn checkbox_on_pointer_down(
                 commands.trigger(ValueChange {
                     source: press.entity,
                     value: !checked,
+                    is_final: true,
                 });
             }
         }
@@ -220,6 +223,7 @@ fn checkbox_on_set_checked(
             commands.trigger(ValueChange {
                 source: set_checked.entity,
                 value: will_be_checked,
+                is_final: true,
             });
         }
     }
@@ -238,6 +242,7 @@ fn checkbox_on_toggle_checked(
         commands.trigger(ValueChange {
             source: toggle_checked.entity,
             value: !is_checked,
+            is_final: true,
         });
     }
 }

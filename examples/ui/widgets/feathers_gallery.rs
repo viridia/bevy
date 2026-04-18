@@ -626,11 +626,13 @@ fn demo_column_2() -> impl Scene {
                                 ],
                                 :subpane_body Children [
                                     :label_dim("A standard sub-pane"),
-                                    :group Children [
+                                    :group
+                                    Children [
                                         :group_header Children [
                                             (Text("Group") ThemedText),
                                         ],
-                                        :group_body Children [
+                                        :group_body
+                                        Children [
                                             :label("A standard group"),
                                             :label_small("Scalar property"),
                                             (
@@ -643,7 +645,9 @@ fn demo_column_2() -> impl Scene {
                                                 on(
                                                     |value_change: On<ValueChange<f32>>,
                                                     mut states: ResMut<DemoWidgetStates>| {
-                                                    states.scalar_prop = value_change.value;
+                                                    if value_change.is_final {
+                                                        states.scalar_prop = value_change.value;
+                                                    }
                                                 })
                                             ),
                                             :label_small("Vec3 property"),
@@ -668,7 +672,9 @@ fn demo_column_2() -> impl Scene {
                                                     on(
                                                         |value_change: On<ValueChange<f32>>,
                                                         mut states: ResMut<DemoWidgetStates>| {
-                                                        states.vec3_prop.x = value_change.value;
+                                                        if value_change.is_final {
+                                                            states.vec3_prop.x = value_change.value;
+                                                        }
                                                     })
                                                 ),
                                                 (
@@ -683,7 +689,9 @@ fn demo_column_2() -> impl Scene {
                                                     on(
                                                         |value_change: On<ValueChange<f32>>,
                                                         mut states: ResMut<DemoWidgetStates>| {
-                                                        states.vec3_prop.y = value_change.value;
+                                                        if value_change.is_final {
+                                                            states.vec3_prop.y = value_change.value;
+                                                        }
                                                     })
                                                 ),
                                                 (
@@ -698,7 +706,9 @@ fn demo_column_2() -> impl Scene {
                                                     on(
                                                         |value_change: On<ValueChange<f32>>,
                                                         mut states: ResMut<DemoWidgetStates>| {
-                                                        states.vec3_prop.z = value_change.value;
+                                                        if value_change.is_final {
+                                                            states.vec3_prop.z = value_change.value;
+                                                        }
                                                     })
                                                 ),
                                             ],

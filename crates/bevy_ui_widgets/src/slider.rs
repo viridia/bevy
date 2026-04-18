@@ -348,6 +348,7 @@ pub(crate) fn slider_on_pointer_down(
         commands.trigger(ValueChange {
             source: press.entity,
             value: new_value,
+            is_final: false,
         });
     }
 }
@@ -374,6 +375,49 @@ pub(crate) fn slider_on_drag_start(
 
 pub(crate) fn slider_on_drag(
     mut event: On<Pointer<Drag>>,
+    q_slider: Query<
+        (
+            &Slider,
+            &ComputedNode,
+            &SliderRange,
+            Option<&SliderPrecision>,
+            &UiGlobalTransform,
+            &CoreSliderDragState,
+            Has<InteractionDisabled>,
+        ),
+        With<Slider>,
+    >,
+    q_thumb: Query<&ComputedNode, With<SliderThumb>>,
+    q_children: Query<&Children>,
+    mut commands: Commands,
+    ui_scale: Res<UiScale>,
+) {
+    if let Ok((slider, node, range, precision, transform, drag, disabled)) =
+        q_slider.get(event.entity)
+    {
+        event.propagate(false);
+        if drag.dragging && !disabled {
+            emit_slider_drag_value_change(
+                &mut commands,
+                event.entity,
+                slider,
+                node,
+                range,
+                precision,
+                transform,
+                drag,
+                &q_thumb,
+                &q_children,
+                &ui_scale,
+                event.distance,
+                false,
+            );
+        }
+    }
+}
+
+pub(crate) fn slider_on_drag_end(
+    mut drag_end: On<Pointer<DragEnd>>,
     mut q_slider: Query<
         (
             &Slider,
@@ -391,69 +435,91 @@ pub(crate) fn slider_on_drag(
     mut commands: Commands,
     ui_scale: Res<UiScale>,
 ) {
-    if let Ok((slider, node, range, precision, transform, drag, disabled)) =
-        q_slider.get_mut(event.entity)
+    if let Ok((slider, node, range, precision, transform, mut drag, disabled)) =
+        q_slider.get_mut(drag_end.entity)
     {
-        event.propagate(false);
+        drag_end.propagate(false);
         if drag.dragging && !disabled {
-            let is_vertical = slider.orientation.is_vertical(node);
-
-            let mut distance = event.distance / ui_scale.0;
-            distance.y *= -1.;
-            let distance = transform.transform_vector2(distance);
-
-            // Find thumb size by searching descendants for the first entity with SliderThumb
-            let thumb_size = q_children
-                .iter_descendants(event.entity)
-                .find_map(|child_id| {
-                    q_thumb.get(child_id).ok().map(|thumb| {
-                        if is_vertical {
-                            thumb.size().y
-                        } else {
-                            thumb.size().x
-                        }
-                    })
-                })
-                .unwrap_or(0.0);
-
-            let slider_size = if is_vertical {
-                ((node.size().y - thumb_size) * node.inverse_scale_factor).max(1.0)
-            } else {
-                ((node.size().x - thumb_size) * node.inverse_scale_factor).max(1.0)
-            };
-
-            let drag_distance = if is_vertical { distance.y } else { distance.x };
-
-            let span = range.span();
-            let new_value = if span > 0. {
-                drag.offset + (drag_distance * span) / slider_size
-            } else {
-                range.start() + span * 0.5
-            };
-            let rounded_value = range.clamp(
-                precision
-                    .map(|prec| prec.round(new_value))
-                    .unwrap_or(new_value),
+            emit_slider_drag_value_change(
+                &mut commands,
+                drag_end.entity,
+                slider,
+                node,
+                range,
+                precision,
+                transform,
+                &drag,
+                &q_thumb,
+                &q_children,
+                &ui_scale,
+                drag_end.distance,
+                true,
             );
-
-            commands.trigger(ValueChange {
-                source: event.entity,
-                value: rounded_value,
-            });
+            drag.dragging = false;
         }
     }
 }
 
-pub(crate) fn slider_on_drag_end(
-    mut drag_end: On<Pointer<DragEnd>>,
-    mut q_slider: Query<(&Slider, &mut CoreSliderDragState)>,
+fn emit_slider_drag_value_change(
+    commands: &mut Commands,
+    entity: Entity,
+    slider: &Slider,
+    node: &ComputedNode,
+    range: &SliderRange,
+    precision: Option<&SliderPrecision>,
+    transform: &UiGlobalTransform,
+    drag: &CoreSliderDragState,
+    q_thumb: &Query<&ComputedNode, With<SliderThumb>>,
+    q_children: &Query<&Children>,
+    ui_scale: &UiScale,
+    distance: bevy_math::Vec2,
+    is_final: bool,
 ) {
-    if let Ok((_slider, mut drag)) = q_slider.get_mut(drag_end.entity) {
-        drag_end.propagate(false);
-        if drag.dragging {
-            drag.dragging = false;
-        }
-    }
+    let is_vertical = slider.orientation.is_vertical(node);
+
+    let mut distance = distance / ui_scale.0;
+    distance.y *= -1.;
+    let distance = transform.transform_vector2(distance);
+
+    // Find thumb size by searching descendants for the first entity with SliderThumb
+    let thumb_size = q_children
+        .iter_descendants(entity)
+        .find_map(|child_id| {
+            q_thumb.get(child_id).ok().map(|thumb| {
+                if is_vertical {
+                    thumb.size().y
+                } else {
+                    thumb.size().x
+                }
+            })
+        })
+        .unwrap_or(0.0);
+
+    let slider_size = if is_vertical {
+        ((node.size().y - thumb_size) * node.inverse_scale_factor).max(1.0)
+    } else {
+        ((node.size().x - thumb_size) * node.inverse_scale_factor).max(1.0)
+    };
+
+    let drag_distance = if is_vertical { distance.y } else { distance.x };
+
+    let span = range.span();
+    let new_value = if span > 0. {
+        drag.offset + (drag_distance * span) / slider_size
+    } else {
+        range.start() + span * 0.5
+    };
+    let rounded_value = range.clamp(
+        precision
+            .map(|prec| prec.round(new_value))
+            .unwrap_or(new_value),
+    );
+
+    commands.trigger(ValueChange {
+        source: entity,
+        value: rounded_value,
+        is_final,
+    });
 }
 
 fn slider_on_key_input(
@@ -485,6 +551,7 @@ fn slider_on_key_input(
             commands.trigger(ValueChange {
                 source: focused_input.focused_entity,
                 value: new_value,
+                is_final: true,
             });
         }
     }
@@ -597,6 +664,7 @@ fn slider_on_set_value(
         commands.trigger(ValueChange {
             source: set_slider_value.entity,
             value: new_value,
+            is_final: true,
         });
     }
 }
