@@ -28,7 +28,6 @@ use bevy::{
     },
     input_focus::{tab_navigation::TabGroup, AutoFocus, InputFocus},
     prelude::*,
-    scene::prelude::Scene,
     text::{EditableText, TextEdit, TextEditChange},
     ui::{Checked, InteractionDisabled},
     ui_widgets::{
@@ -81,14 +80,13 @@ fn main() {
             scalar_prop: 7.0,
             vec3_prop: Vec3::new(10.1, 7.124, 100.0),
         })
-        .add_systems(Startup, setup)
+        .add_systems(Startup, scene.spawn())
         .add_systems(Update, update_colors)
         .run();
 }
 
-fn setup(world: &mut World) -> Result {
-    world.spawn_scene_list(bsn_list![Camera2d, demo_root()])?;
-    Ok(())
+fn scene() -> impl SceneList {
+    bsn_list![Camera2d, demo_root()]
 }
 
 fn demo_root() -> impl Scene {
@@ -359,7 +357,7 @@ fn demo_column_1() -> impl Scene {
             (
                 checkbox(CheckboxProps {
                     caption: Box::new(bsn_list!(
-                        (Text("Disabled+Checked") ThemedText),
+                        (Text("Checked+Disabled") ThemedText),
                     )),
                 })
                 InteractionDisabled
@@ -401,9 +399,9 @@ fn demo_column_1() -> impl Scene {
                     })),
                     (radio(RadioProps {
                         caption: Box::new(bsn_list!(
-                            (Text("Three") ThemedText),
+                            (Text("Fast Click") ThemedText),
                         )),
-                    })),
+                    }) ActivateOnPress),
                     (radio(RadioProps {
                         caption: Box::new(bsn_list!(
                             (Text("Disabled") ThemedText),
@@ -833,7 +831,9 @@ fn handle_hex_color_change(
     mut colors: ResMut<DemoWidgetStates>,
 ) {
     let editable_text = *q_text_input;
-    if let Ok(color) = Srgba::hex(editable_text.value().to_string()) {
+    if let Ok(color) = Srgba::hex(editable_text.value().to_string())
+        && color != colors.rgb_color
+    {
         colors.rgb_color = color;
     }
 }

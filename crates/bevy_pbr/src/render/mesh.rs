@@ -143,7 +143,7 @@ impl MeshRenderPlugin {
 pub const MESH_PIPELINE_VIEW_LAYOUT_SAFE_MAX_TEXTURES: usize = 10;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-pub struct MeshPipelineSet;
+pub struct MeshPipelineSystems;
 
 impl Plugin for MeshRenderPlugin {
     fn build(&self, app: &mut App) {
@@ -321,7 +321,7 @@ impl Plugin for MeshRenderPlugin {
                 RenderStartup,
                 (init_mesh_pipeline_view_layouts, init_mesh_pipeline)
                     .chain()
-                    .in_set(MeshPipelineSet),
+                    .in_set(MeshPipelineSystems),
             );
         }
 
@@ -3385,6 +3385,9 @@ impl SpecializedMeshPipeline for MeshPipeline {
         }
         if cfg!(feature = "bluenoise_texture") {
             shader_defs.push("BLUE_NOISE_TEXTURE".into());
+        }
+        if cfg!(feature = "dfg_lut") {
+            shader_defs.push("DFG_LUT".into());
         }
 
         let bind_group_layout = self.get_view_layout(key.into());
