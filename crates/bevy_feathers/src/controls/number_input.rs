@@ -5,7 +5,6 @@ use bevy_ecs::{
     entity::Entity,
     event::EntityEvent,
     hierarchy::{ChildOf, Children},
-    lifecycle::Insert,
     observer::On,
     query::With,
     relationship::Relationship,
@@ -33,11 +32,8 @@ use crate::{
 #[derive(Component, Default, Clone)]
 struct FeathersNumberInput;
 
-/// Used to indicate what format of numbers we are editing.
-///
-/// Note that this does not affect the type of value change event (which is still
-/// [`ValueChange<f64>`]) or the type of [`NumberInputValue(f64)`]. It only controls the internal
-/// parsing and number formatting precision.
+/// Used to indicate what format of numbers we are editing. This primarily affects the type
+/// of [`ValueChange`] event that is emitted.
 #[derive(Component, Default, Clone, Copy)]
 pub enum NumberFormat {
     /// A 32-bit float
@@ -47,6 +43,8 @@ pub enum NumberFormat {
     F64,
     /// A 32-bit integer
     I32,
+    /// A 64-bit integer
+    I64,
 }
 
 /// Parameters for the text input template, passed to [`number_input`] function.
@@ -71,37 +69,66 @@ impl Default for NumberInputProps {
     }
 }
 
-/// A component which, when inserted, will update the displayed value of the number being edited.
-/// This avoids the need for users to search the internal hierarchy of the widget looking for the
-/// text buffer (which is not located at the root level).
-// TODO: Consider unifying this with bevy_ui_widgets::SliderValue
-#[derive(Component, Debug, Default, PartialEq, Clone, Copy)]
-#[component(immutable)]
-pub struct NumberInputValue(pub f64);
+/// Represents numbers in different formats.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum NumberInputValue {
+    /// An f32 value
+    F32(f32),
+    /// An f64 value
+    F64(f64),
+    /// An i32 value
+    I32(i32),
+    /// An i64 value
+    I64(i64),
+}
+
+impl core::fmt::Display for NumberInputValue {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            NumberInputValue::F32(v) => write!(f, "{}", v),
+            NumberInputValue::F64(v) => write!(f, "{}", v),
+            NumberInputValue::I32(v) => write!(f, "{}", v),
+            NumberInputValue::I64(v) => write!(f, "{}", v),
+        }
+    }
+}
+
+/// Event which can be sent to the number input widget to update the displayed value.
+#[derive(Clone, EntityEvent)]
+pub struct UpdateNumberInput {
+    /// Target widget
+    pub entity: Entity,
+
+    /// Value to change to
+    pub value: NumberInputValue,
+}
 
 /// Widget that permits text entry of floating-point numbers. This widget implements two-way
-/// synchronization: when the widget has focus, it emits values (via a [`ValueChange<f64>`]) event
-/// as the user types; when the widget does not have focus, it listens for changes to the
-/// [`NumberInputValue`] component. To avoid excessive updating, you should only replace the
-/// input value component when there is an actual change, that is, when the new value is different
-/// from the current value. This will cause the text to be replaced.
+/// synchronization:
+/// * when the widget has focus, it emits values (via a [`ValueChange<T>`]) event as the user types.
+///   The type of ``T`` will be ``f32``, ``f64``, ``i32``, or ``i64`` depending on the
+///   ``number_format`` parameter.
+/// * when the widget does not have focus, it listens for [`UpdateNumberValue`] events, and replaces
+///   the contents of the text buffer based on the value in that event.
+///
+/// To avoid excessive updating, you should only update the number value when there is an actual
+/// change, that is, when the new value is different from the current value.
 ///
 /// In most cases, the actual source of truth for the numeric value will be external, that is,
 /// some property in an app-specific data structure. It's the responsibility of the app to
 /// sychronize this value with the [`number_input`] widget in both directions:
 /// * When a [`ValueChange`] event is received, update the app-specific property.
 /// * When the app-specific property changes - either in response to a [`ValueChange`] event, or
-///   because of some other action, insert a [`NumberInputValue`] component to update the
+///   because of some other action, trigger an [`UpdateNumberValue`] entity event to update the
 ///   displayed value.
-// TODO: Add field validation when it becomes available.
+// TODO: Add text_input field validation when it becomes available.
 pub fn number_input(props: NumberInputProps) -> impl Scene {
     bsn! {
         :text_input_container()
         ThemeBorderColor({props.sigil_color.clone()})
         FeathersNumberInput
         template_value(props.number_format)
-        NumberInputValue(0.0)
-        on(number_input_on_value_change)
+        on(number_input_on_update)
         Children [
             {
                 match props.label_text {
@@ -168,18 +195,18 @@ fn number_input_on_text_change(
     emit_value_change(text_value, *number_format, parent.0, &mut commands);
 }
 
-fn number_input_on_value_change(
-    change: On<Insert, NumberInputValue>,
+fn number_input_on_update(
+    update: On<UpdateNumberInput>,
     q_children: Query<&Children>,
-    q_number_input: Query<(&NumberFormat, &NumberInputValue), With<FeathersNumberInput>>,
+    q_number_input: Query<(), With<FeathersNumberInput>>,
     mut q_text_input: Query<&mut EditableText>,
     focus: Res<InputFocus>,
 ) {
-    let Ok((number_format, number_input_value)) = q_number_input.get(change.event_target()) else {
+    if !q_number_input.contains(update.event_target()) {
         return;
     };
 
-    let Ok(children) = q_children.get(change.event_target()) else {
+    let Ok(children) = q_children.get(update.event_target()) else {
         return;
     };
 
@@ -187,9 +214,12 @@ fn number_input_on_value_change(
         if focus.get() != Some(*child_id)
             && let Ok(mut editable_text) = q_text_input.get_mut(*child_id)
         {
-            let new_digits = format_value(number_input_value.0, *number_format);
-            editable_text.queue_edit(TextEdit::SelectAll);
-            editable_text.queue_edit(TextEdit::Insert(new_digits.into()));
+            let new_digits = update.value.to_string();
+            let old_digits = editable_text.value().to_string();
+            if old_digits != new_digits {
+                editable_text.queue_edit(TextEdit::SelectAll);
+                editable_text.queue_edit(TextEdit::Insert(new_digits.into()));
+            }
             break;
         }
     }
@@ -253,48 +283,71 @@ fn emit_value_change(
     source: Entity,
     commands: &mut Commands,
 ) {
-    let number_value = match format {
-        NumberFormat::F32 => text_value.parse::<f32>().map(|f| f as f64).map_err(|_| ()),
-        NumberFormat::F64 => text_value.parse::<f64>().map_err(|_| ()),
-        NumberFormat::I32 => text_value.parse::<i32>().map(|f| f as f64).map_err(|_| ()),
-    };
-
-    match number_value {
-        Ok(new_value) => {
-            commands.trigger(ValueChange {
-                source,
-                value: new_value,
-                is_final: true,
-            });
-        }
-        Err(_) => {
-            // TODO: Emit a validation error once these are defined
-            warn!("Invalid floating-point number in text edit");
-        }
-    }
-}
-
-fn format_value(value: f64, format: NumberFormat) -> String {
-    match format {
-        NumberFormat::F32 => format!("{}", value as f32),
-        NumberFormat::F64 => format!("{}", value),
-        NumberFormat::I32 => format!("{}", value as i32),
-    }
-}
-
-/// Observer function which updates the [`NumberInputValue`] in response to a [`ValueChange`] event.
-pub fn number_input_self_update(
-    value_change: On<ValueChange<f64>>,
-    mut q_number_input: Query<&NumberInputValue>,
-    mut commands: Commands,
-) {
-    let Ok(number_input) = q_number_input.get_mut(value_change.event_target()) else {
+    let text_value = text_value.trim();
+    if text_value.is_empty() {
         return;
-    };
+    }
 
-    if number_input.0 != value_change.value {
-        commands
-            .entity(value_change.source)
-            .insert(NumberInputValue(value_change.value));
+    match format {
+        NumberFormat::F32 => {
+            match text_value.parse::<f32>() {
+                Ok(new_value) => {
+                    commands.trigger(ValueChange {
+                        source,
+                        value: new_value,
+                        is_final: true,
+                    });
+                }
+                Err(_) => {
+                    // TODO: Emit a validation error once these are defined
+                    warn!("Invalid floating-point number in text edit");
+                }
+            }
+        }
+        NumberFormat::F64 => {
+            match text_value.parse::<f64>() {
+                Ok(new_value) => {
+                    commands.trigger(ValueChange {
+                        source,
+                        value: new_value,
+                        is_final: true,
+                    });
+                }
+                Err(_) => {
+                    // TODO: Emit a validation error once these are defined
+                    warn!("Invalid floating-point number in text edit");
+                }
+            }
+        }
+        NumberFormat::I32 => {
+            match text_value.parse::<i32>() {
+                Ok(new_value) => {
+                    commands.trigger(ValueChange {
+                        source,
+                        value: new_value,
+                        is_final: true,
+                    });
+                }
+                Err(_) => {
+                    // TODO: Emit a validation error once these are defined
+                    warn!("Invalid floating-point number in text edit");
+                }
+            }
+        }
+        NumberFormat::I64 => {
+            match text_value.parse::<i64>() {
+                Ok(new_value) => {
+                    commands.trigger(ValueChange {
+                        source,
+                        value: new_value,
+                        is_final: true,
+                    });
+                }
+                Err(_) => {
+                    // TODO: Emit a validation error once these are defined
+                    warn!("Invalid floating-point number in text edit");
+                }
+            }
+        }
     }
 }

@@ -15,7 +15,7 @@ use bevy::{
             ButtonVariant, CheckboxProps, ColorChannel, ColorPlane, ColorPlaneValue, ColorSlider,
             ColorSliderProps, ColorSwatch, ColorSwatchValue, MenuButtonProps, MenuItemProps,
             NumberInputProps, NumberInputValue, RadioProps, SliderBaseColor, SliderProps,
-            TextInputProps,
+            TextInputProps, UpdateNumberInput,
         },
         cursor::{EntityCursor, OverrideCursor},
         dark_theme::create_dark_theme,
@@ -731,8 +731,8 @@ fn update_colors(
     mut swatches: Query<(&mut ColorSwatchValue, &SwatchType), With<ColorSwatch>>,
     mut color_planes: Query<&mut ColorPlaneValue, With<ColorPlane>>,
     q_text_input: Single<(Entity, &mut EditableText), With<HexColorInput>>,
-    q_scalar_input: Single<(Entity, &NumberInputValue), With<DemoScalarField>>,
-    q_vec3_input: Query<(Entity, &NumberInputValue, &DemoVec3Field)>,
+    q_scalar_input: Single<Entity, With<DemoScalarField>>,
+    q_vec3_input: Query<(Entity, &DemoVec3Field)>,
     mut commands: Commands,
     focus: Res<InputFocus>,
 ) {
@@ -805,26 +805,23 @@ fn update_colors(
             editable_text.queue_edit(TextEdit::Insert(states.rgb_color.to_hex().into()));
         }
 
-        let (scalar_input_ent, scalar_value) = q_scalar_input.into_inner();
-        let new_value = states.scalar_prop as f64;
-        if scalar_value.0 != new_value {
-            commands
-                .entity(scalar_input_ent)
-                .insert(NumberInputValue(new_value));
-        }
+        let scalar_input_ent = q_scalar_input.into_inner();
+        commands.trigger(UpdateNumberInput {
+            entity: scalar_input_ent,
+            value: NumberInputValue::F32(states.scalar_prop),
+        });
 
-        for (vec3_input_ent, vec3_value, axis) in q_vec3_input.iter() {
+        for (vec3_input_ent, axis) in q_vec3_input.iter() {
             let new_value = match axis {
                 DemoVec3Field::X => states.vec3_prop.x,
                 DemoVec3Field::Y => states.vec3_prop.y,
                 DemoVec3Field::Z => states.vec3_prop.z,
-            } as f64;
+            };
 
-            if vec3_value.0 != new_value {
-                commands
-                    .entity(vec3_input_ent)
-                    .insert(NumberInputValue(new_value));
-            }
+            commands.trigger(UpdateNumberInput {
+                entity: vec3_input_ent,
+                value: NumberInputValue::F32(new_value),
+            });
         }
     }
 }
