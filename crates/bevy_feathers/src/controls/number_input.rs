@@ -192,7 +192,7 @@ fn number_input_on_text_change(
     };
 
     let text_value = editable_text.value().to_string();
-    emit_value_change(text_value, *number_format, parent.0, &mut commands);
+    emit_value_change(text_value, *number_format, parent.0, &mut commands, false);
 }
 
 fn number_input_on_update(
@@ -249,7 +249,7 @@ fn number_input_on_enter_key(
     };
 
     let text_value = editable_text.value().to_string();
-    emit_value_change(text_value, *number_format, parent.0, &mut commands);
+    emit_value_change(text_value, *number_format, parent.0, &mut commands, true);
 }
 
 fn number_input_on_focus_loss(
@@ -274,7 +274,7 @@ fn number_input_on_focus_loss(
     };
 
     let text_value = editable_text.value().to_string();
-    emit_value_change(text_value, *number_format, parent.0, &mut commands);
+    emit_value_change(text_value, *number_format, parent.0, &mut commands, true);
 }
 
 fn emit_value_change(
@@ -282,6 +282,7 @@ fn emit_value_change(
     format: NumberFormat,
     source: Entity,
     commands: &mut Commands,
+    is_final: bool,
 ) {
     let text_value = text_value.trim();
     if text_value.is_empty() {
@@ -295,7 +296,7 @@ fn emit_value_change(
                     commands.trigger(ValueChange {
                         source,
                         value: new_value,
-                        is_final: true,
+                        is_final,
                     });
                 }
                 Err(_) => {
@@ -310,7 +311,7 @@ fn emit_value_change(
                     commands.trigger(ValueChange {
                         source,
                         value: new_value,
-                        is_final: true,
+                        is_final,
                     });
                 }
                 Err(_) => {
@@ -325,7 +326,7 @@ fn emit_value_change(
                     commands.trigger(ValueChange {
                         source,
                         value: new_value,
-                        is_final: true,
+                        is_final,
                     });
                 }
                 Err(_) => {
@@ -340,7 +341,7 @@ fn emit_value_change(
                     commands.trigger(ValueChange {
                         source,
                         value: new_value,
-                        is_final: true,
+                        is_final,
                     });
                 }
                 Err(_) => {

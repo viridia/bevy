@@ -641,10 +641,26 @@ fn demo_column_2() -> impl Scene {
                                                     max_width: px(100),
                                                 }
                                                 on(
-                                                    |value_change: On<ValueChange<f64>>,
+                                                    |value_change: On<ValueChange<f32>>,
                                                     mut states: ResMut<DemoWidgetStates>| {
                                                     if value_change.is_final {
-                                                        states.scalar_prop = value_change.value as f32;
+                                                        states.scalar_prop = value_change.value;
+                                                    }
+                                                })
+                                            ),
+                                            :label_small("Scalar property (copy)"),
+                                            (
+                                                :number_input(NumberInputProps::default())
+                                                DemoScalarField
+                                                Node {
+                                                    flex_grow: 1.0,
+                                                    max_width: px(100),
+                                                }
+                                                on(
+                                                    |value_change: On<ValueChange<f32>>,
+                                                    mut states: ResMut<DemoWidgetStates>| {
+                                                    if value_change.is_final {
+                                                        states.scalar_prop = value_change.value;
                                                     }
                                                 })
                                             ),
@@ -669,10 +685,10 @@ fn demo_column_2() -> impl Scene {
                                                     }
                                                     BorderColor::all(palette::X_AXIS)
                                                     on(
-                                                        |value_change: On<ValueChange<f64>>,
+                                                        |value_change: On<ValueChange<f32>>,
                                                         mut states: ResMut<DemoWidgetStates>| {
                                                         if value_change.is_final {
-                                                            states.vec3_prop.x = value_change.value as f32;
+                                                            states.vec3_prop.x = value_change.value;
                                                         }
                                                     })
                                                 ),
@@ -687,10 +703,10 @@ fn demo_column_2() -> impl Scene {
                                                         flex_grow: 1.0,
                                                     }
                                                     on(
-                                                        |value_change: On<ValueChange<f64>>,
+                                                        |value_change: On<ValueChange<f32>>,
                                                         mut states: ResMut<DemoWidgetStates>| {
                                                         if value_change.is_final {
-                                                            states.vec3_prop.y = value_change.value as f32;
+                                                            states.vec3_prop.y = value_change.value;
                                                         }
                                                     })
                                                 ),
@@ -705,10 +721,10 @@ fn demo_column_2() -> impl Scene {
                                                         flex_grow: 1.0,
                                                     }
                                                     on(
-                                                        |value_change: On<ValueChange<f64>>,
+                                                        |value_change: On<ValueChange<f32>>,
                                                         mut states: ResMut<DemoWidgetStates>| {
                                                         if value_change.is_final {
-                                                            states.vec3_prop.z = value_change.value as f32;
+                                                            states.vec3_prop.z = value_change.value;
                                                         }
                                                     })
                                                 ),
@@ -731,7 +747,7 @@ fn update_colors(
     mut swatches: Query<(&mut ColorSwatchValue, &SwatchType), With<ColorSwatch>>,
     mut color_planes: Query<&mut ColorPlaneValue, With<ColorPlane>>,
     q_text_input: Single<(Entity, &mut EditableText), With<HexColorInput>>,
-    q_scalar_input: Single<Entity, With<DemoScalarField>>,
+    q_scalar_input: Query<Entity, With<DemoScalarField>>,
     q_vec3_input: Query<(Entity, &DemoVec3Field)>,
     mut commands: Commands,
     focus: Res<InputFocus>,
@@ -805,11 +821,12 @@ fn update_colors(
             editable_text.queue_edit(TextEdit::Insert(states.rgb_color.to_hex().into()));
         }
 
-        let scalar_input_ent = q_scalar_input.into_inner();
-        commands.trigger(UpdateNumberInput {
-            entity: scalar_input_ent,
-            value: NumberInputValue::F32(states.scalar_prop),
-        });
+        for scalar_input_ent in q_scalar_input.iter() {
+            commands.trigger(UpdateNumberInput {
+                entity: scalar_input_ent,
+                value: NumberInputValue::F32(states.scalar_prop),
+            });
+        }
 
         for (vec3_input_ent, axis) in q_vec3_input.iter() {
             let new_value = match axis {
