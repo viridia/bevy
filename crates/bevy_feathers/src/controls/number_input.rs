@@ -116,7 +116,7 @@ pub struct UpdateNumberInput {
 ///
 /// In most cases, the actual source of truth for the numeric value will be external, that is,
 /// some property in an app-specific data structure. It's the responsibility of the app to
-/// sychronize this value with the [`number_input`] widget in both directions:
+/// synchronize this value with the [`number_input`] widget in both directions:
 /// * When a [`ValueChange`] event is received, update the app-specific property.
 /// * When the app-specific property changes - either in response to a [`ValueChange`] event, or
 ///   because of some other action, trigger an [`UpdateNumberValue`] entity event to update the
