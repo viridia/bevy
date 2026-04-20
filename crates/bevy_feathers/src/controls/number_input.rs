@@ -331,7 +331,7 @@ fn emit_value_change(
                 }
                 Err(_) => {
                     // TODO: Emit a validation error once these are defined
-                    warn!("Invalid floating-point number in text edit");
+                    warn!("Invalid integer number in text edit");
                 }
             }
         }
@@ -346,7 +346,7 @@ fn emit_value_change(
                 }
                 Err(_) => {
                     // TODO: Emit a validation error once these are defined
-                    warn!("Invalid floating-point number in text edit");
+                    warn!("Invalid integer number in text edit");
                 }
             }
         }
