@@ -432,7 +432,6 @@ pub(crate) fn slider_on_drag_end(
             Option<&SliderPrecision>,
             &UiGlobalTransform,
             &mut CoreSliderDragState,
-            Has<InteractionDisabled>,
         ),
         With<Slider>,
     >,
@@ -441,11 +440,11 @@ pub(crate) fn slider_on_drag_end(
     mut commands: Commands,
     ui_scale: Res<UiScale>,
 ) {
-    if let Ok((slider_ent, slider, node, range, precision, transform, mut drag, disabled)) =
+    if let Ok((slider_ent, slider, node, range, precision, transform, mut drag)) =
         q_slider.get_mut(drag_end.entity)
     {
         drag_end.propagate(false);
-        if drag.dragging && !disabled {
+        if drag.dragging {
             emit_slider_drag_value_change(
                 &mut commands,
                 drag_end.entity,
