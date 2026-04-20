@@ -641,10 +641,10 @@ fn demo_column_2() -> impl Scene {
                                                     max_width: px(100),
                                                 }
                                                 on(
-                                                    |value_change: On<ValueChange<f32>>,
+                                                    |value_change: On<ValueChange<f64>>,
                                                     mut states: ResMut<DemoWidgetStates>| {
                                                     if value_change.is_final {
-                                                        states.scalar_prop = value_change.value;
+                                                        states.scalar_prop = value_change.value as f32;
                                                     }
                                                 })
                                             ),
@@ -661,6 +661,7 @@ fn demo_column_2() -> impl Scene {
                                                     :number_input(NumberInputProps {
                                                         sigil_color: tokens::TEXT_INPUT_X_AXIS,
                                                         label_text: Some("X"),
+                                                        ..default()
                                                     })
                                                     template_value(DemoVec3Field::X)
                                                     Node {
@@ -668,10 +669,10 @@ fn demo_column_2() -> impl Scene {
                                                     }
                                                     BorderColor::all(palette::X_AXIS)
                                                     on(
-                                                        |value_change: On<ValueChange<f32>>,
+                                                        |value_change: On<ValueChange<f64>>,
                                                         mut states: ResMut<DemoWidgetStates>| {
                                                         if value_change.is_final {
-                                                            states.vec3_prop.x = value_change.value;
+                                                            states.vec3_prop.x = value_change.value as f32;
                                                         }
                                                     })
                                                 ),
@@ -679,16 +680,17 @@ fn demo_column_2() -> impl Scene {
                                                     :number_input(NumberInputProps {
                                                         sigil_color: tokens::TEXT_INPUT_Y_AXIS,
                                                         label_text: Some("Y"),
+                                                        ..default()
                                                     })
                                                     template_value(DemoVec3Field::Y)
                                                     Node {
                                                         flex_grow: 1.0,
                                                     }
                                                     on(
-                                                        |value_change: On<ValueChange<f32>>,
+                                                        |value_change: On<ValueChange<f64>>,
                                                         mut states: ResMut<DemoWidgetStates>| {
                                                         if value_change.is_final {
-                                                            states.vec3_prop.y = value_change.value;
+                                                            states.vec3_prop.y = value_change.value as f32;
                                                         }
                                                     })
                                                 ),
@@ -696,16 +698,17 @@ fn demo_column_2() -> impl Scene {
                                                     :number_input(NumberInputProps {
                                                         sigil_color: tokens::TEXT_INPUT_Z_AXIS,
                                                         label_text: Some("Z"),
+                                                        ..default()
                                                     })
                                                     template_value(DemoVec3Field::Z)
                                                     Node {
                                                         flex_grow: 1.0,
                                                     }
                                                     on(
-                                                        |value_change: On<ValueChange<f32>>,
+                                                        |value_change: On<ValueChange<f64>>,
                                                         mut states: ResMut<DemoWidgetStates>| {
                                                         if value_change.is_final {
-                                                            states.vec3_prop.z = value_change.value;
+                                                            states.vec3_prop.z = value_change.value as f32;
                                                         }
                                                     })
                                                 ),
@@ -803,10 +806,11 @@ fn update_colors(
         }
 
         let (scalar_input_ent, scalar_value) = q_scalar_input.into_inner();
-        if scalar_value.0 != states.scalar_prop {
+        let new_value = states.scalar_prop as f64;
+        if scalar_value.0 != new_value {
             commands
                 .entity(scalar_input_ent)
-                .insert(NumberInputValue(states.scalar_prop));
+                .insert(NumberInputValue(new_value));
         }
 
         for (vec3_input_ent, vec3_value, axis) in q_vec3_input.iter() {
@@ -814,7 +818,7 @@ fn update_colors(
                 DemoVec3Field::X => states.vec3_prop.x,
                 DemoVec3Field::Y => states.vec3_prop.y,
                 DemoVec3Field::Z => states.vec3_prop.z,
-            };
+            } as f64;
 
             if vec3_value.0 != new_value {
                 commands
