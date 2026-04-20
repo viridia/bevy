@@ -108,7 +108,7 @@ pub struct UpdateNumberInput {
 /// * when the widget has focus, it emits values (via a [`ValueChange<T>`]) event as the user types.
 ///   The type of ``T`` will be ``f32``, ``f64``, ``i32``, or ``i64`` depending on the
 ///   ``number_format`` parameter.
-/// * when the widget does not have focus, it listens for [`UpdateNumberValue`] events, and replaces
+/// * when the widget does not have focus, it listens for [`UpdateNumberInput`] events, and replaces
 ///   the contents of the text buffer based on the value in that event.
 ///
 /// To avoid excessive updating, you should only update the number value when there is an actual
@@ -119,7 +119,7 @@ pub struct UpdateNumberInput {
 /// synchronize this value with the [`number_input`] widget in both directions:
 /// * When a [`ValueChange`] event is received, update the app-specific property.
 /// * When the app-specific property changes - either in response to a [`ValueChange`] event, or
-///   because of some other action, trigger an [`UpdateNumberValue`] entity event to update the
+///   because of some other action, trigger an [`UpdateNumberInput`] entity event to update the
 ///   displayed value.
 // TODO: Add text_input field validation when it becomes available.
 pub fn number_input(props: NumberInputProps) -> impl Scene {
