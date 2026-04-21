@@ -2,7 +2,7 @@
 use bevy_app::PropagateOver;
 use bevy_asset::AssetServer;
 use bevy_ecs::template::template;
-use bevy_scene::{bsn, template_value, Scene};
+use bevy_scene::{bsn, Scene};
 use bevy_text::{FontSource, FontWeight, TextFont};
 use bevy_ui::widget::Text;
 
@@ -14,9 +14,8 @@ use crate::{
 
 /// A text label.
 pub fn label(text: impl Into<String>) -> impl Scene {
-    let text = Text::new(text.into());
     bsn! {
-        template_value(text)
+        Text(text)
         template(|ctx| {
             Ok(TextFont {
                 font: FontSource::Handle(ctx.resource::<AssetServer>().load(fonts::REGULAR)),
@@ -32,9 +31,8 @@ pub fn label(text: impl Into<String>) -> impl Scene {
 
 /// A text label with a dimmed color.
 pub fn label_dim(text: impl Into<String>) -> impl Scene {
-    let text = Text::new(text.into());
     bsn! {
-        template_value(text)
+        Text(text)
         template(|ctx| {
             Ok(TextFont {
                 font: FontSource::Handle(ctx.resource::<AssetServer>().load(fonts::REGULAR)),
@@ -50,9 +48,8 @@ pub fn label_dim(text: impl Into<String>) -> impl Scene {
 
 /// A small text label, used for field captions.
 pub fn label_small(text: impl Into<String>) -> impl Scene {
-    let text = Text::new(text.into());
     bsn! {
-        template_value(text)
+        Text(text)
         template(|ctx| {
             Ok(TextFont {
                 font: FontSource::Handle(ctx.resource::<AssetServer>().load(fonts::REGULAR)),
