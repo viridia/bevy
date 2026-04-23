@@ -15,6 +15,7 @@
 //! - Backspace and delete operations
 //! - Click to place cursor
 //! - Cursor blinking
+//! - Newline support for multi-line input
 //! - Soft-wrapping of long lines
 //! - Vertical scrolling for multi-line input
 //! - Horizontal scrolling for long lines
@@ -53,7 +54,6 @@
 //! - Placeholder text (displayed when the input is empty)
 //! - Clipboard operations (copy, cut, paste)
 //! - Undo/redo functionality
-//! - Newline support for multi-line input
 //! - Text validation (e.g., email format, numeric input, max length)
 //! - Password-style character masking
 //! - Mobile pop-up keyboard support
