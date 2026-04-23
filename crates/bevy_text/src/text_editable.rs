@@ -11,8 +11,16 @@
 //!
 //! - Text entry
 //! - Basic keyboard-driven cursor movement (arrow keys, home/end keys)
+//! - Home / End key support for moving the cursor to the start / end of the text
 //! - Backspace and delete operations
+//! - Click to place cursor
+//! - Cursor blinking
+//! - Soft-wrapping of long lines
+//! - Vertical scrolling for multi-line input
+//! - Horizontal scrolling for long lines
 //! - Input Method Editor (IME) support for complex scripts (Japanese, Chinese, Korean, etc.)
+//! - Bidirectional text support (e.g., mixing left-to-right and right-to-left scripts)
+//! - Input consumption (preventing other systems from receiving keyboard input events when the text input is focused)
 //!
 //! You might use this widget as the basis for text input fields in forms, chat boxes, for naming characters,
 //! or any other scenario where you want to extract an unformatted text string from the user.
@@ -42,25 +50,16 @@
 //!
 //! However, the following features are planned but currently not implemented:
 //!
-//! - Home / End key support for moving the cursor to the start / end of the text
 //! - Placeholder text (displayed when the input is empty)
-//! - Click to place cursor
-//! - Cursor blinking
 //! - Clipboard operations (copy, cut, paste)
 //! - Undo/redo functionality
 //! - Newline support for multi-line input
 //! - Text validation (e.g., email format, numeric input, max length)
 //! - Password-style character masking
-//! - Soft-wrapping of long lines
-//! - Vertical scrolling for multi-line input
-//! - Horizontal scrolling for long lines
 //! - Mobile pop-up keyboard support
 //! - Overwrite mode (typically toggled by the `Insert` key)
-//! - Bidirectional text support (e.g., mixing left-to-right and right-to-left scripts)
 //! - AccessKit integration for screen readers and other assistive technologies
 //! - World-space text input
-//! - Text input labels (used for accessibility, tooltips or form descriptions)
-//! - Input consumption (preventing other systems from receiving keyboard input events when the text input is focused)
 //! - Text form submission handling
 //!
 //! If you require any of these features, please consider contributing it to the crate,
